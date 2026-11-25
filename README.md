@@ -8,6 +8,7 @@ Lock files and notes with a password, entirely in the browser. Nothing is upload
 - Detects any flipped bit, truncation, appended data, reordered chunks, or chunks spliced in from another file
 - The original **file name and type are encrypted** too
 - A **guilloché seal** drawn from each file's key commitment: same file + same password = same seal
+- Olive and beige interface (light and dark), with a particle wordmark, WebGPU glass shards, and a **session list** of what you locked or opened (locked items can be saved again; opened contents aren't kept)
 - Password strength checking (zxcvbn) and a 6-word **EFF Diceware** passphrase generator (≈77.5 bits)
 - All cryptography runs in a **Web Worker**; the standalone build has a CSP that forbids every network connection
 
@@ -101,13 +102,16 @@ src/crypto/worker.ts    runs all crypto off the main thread
 src/crypto/password.ts  strength meter and Diceware passphrases
 src/ui/Seal.tsx         guilloché seal generated from the key commitment
 src/ui/save.ts          saving files (browser download or artifact host)
+src/ui/Hero.tsx         particle wordmark and WebGPU shard background
+src/ui/Session.tsx      list of what was locked or opened this session
 src/rb/                 React Bits components
 src/App.tsx             interface
 ```
 
 ## Credits
 
-- UI components from [React Bits](https://reactbits.dev) by David Haz: HoldButton, RubberSegment, StatusMark, DecryptedText (MIT + Commons Clause, used as part of this application).
+- UI components from [React Bits](https://reactbits.dev) by David Haz: AeroShards, ParticleText, AnimatedContent, AnimatedList, HoldButton, RubberSegment, StatusMark, DecryptedText (MIT + Commons Clause, used as part of this application).
+- AeroShards needs WebGPU (current Chrome, Edge and Safari). Without it, the page simply leaves the shards out.
 - [EFF Large Wordlist](https://www.eff.org/dice) (CC BY 3.0 US).
-- [hash-wasm](https://github.com/Daninet/hash-wasm), [@noble/hashes](https://github.com/paulmillr/noble-hashes), [zxcvbn-ts](https://github.com/zxcvbn-ts/zxcvbn), [fflate](https://github.com/101arrowz/fflate).
+- [hash-wasm](https://github.com/Daninet/hash-wasm), [GSAP](https://gsap.com), [Hugeicons](https://hugeicons.com), [vgpu](https://github.com/vercel-labs/vgpu), [@noble/hashes](https://github.com/paulmillr/noble-hashes), [zxcvbn-ts](https://github.com/zxcvbn-ts/zxcvbn), [fflate](https://github.com/101arrowz/fflate).
 - AES-GCM, HKDF and HMAC come from the browser's built-in Web Crypto API.

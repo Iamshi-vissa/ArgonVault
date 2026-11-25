@@ -8,6 +8,10 @@ import { run } from './crypto/client';
 import { HARDENED, sealCode, STANDARD, type KdfParams } from './crypto/format';
 import { MIN_SCORE, passphrase, PASSPHRASE_BITS, strength } from './crypto/password';
 import { lockedName, restoredFile, sandboxed, saveFile } from './ui/save';
+import AnimatedContent from './rb/AnimatedContent';
+import Hero from './ui/Hero';
+import Session, { type SessionEntry } from './ui/Session';
+import { useTheme } from './ui/useTheme';
 
 type Mode = 'lock' | 'unlock';
 type Kind = 'file' | 'note';
@@ -58,6 +62,38 @@ export default function App() {
   const [notice, setNotice] = useState('');
   const [drag, setDrag] = useState(false);
   const pwRef = useRef<HTMLInputElement>(null);
+  const docRef = useRef<HTMLElement>(null);
+  const theme = useTheme();
+  const [entries, setEntries] = useState<SessionEntry[]>([]);
+  const kept = useRef(new Map<number, Result>());
+  const nextEntry = useRef(1);
+  const [now, setNow] = useState(() => Date.now());
+
+  useEffect(() => {
+    const t = setInterval(() => setNow(Date.now()), 30_000);
+    return () => clearInterval(t);
+  }, []);
+
+  function remember(r: Result, what: Kind, size: number) {
+    const id = nextEntry.current++;
+    if (r.mode === 'lock') kept.current.set(id, r);
+    setNow(Date.now());
+    setEntries(list => [
+      { id, action: r.mode === 'lock' ? 'locked' : 'unlocked', what, name: r.name || 'note', size, seal: sealCode(r.seal), at: Date.now() },
+      ...list
+    ]);
+  }
+
+  function reopen(e: SessionEntry) {
+    const r = kept.current.get(e.id);
+    if (!r || busy) return;
+    setMode('lock');
+    setKind(e.what);
+    setResult(r);
+    setNotice('');
+    setJob({ status: 'done' });
+    docRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+  }
 
   const params = preset === 'hardened' ? HARDENED : STANDARD;
   const busy = job.status === 'working';
@@ -85,7 +121,7 @@ export default function App() {
   const switchMode = (m: string) => {
     if (busy) return;
     setMode(m as Mode);
-    reset();
+    reset(false);
   };
 
   const progress = (phase: 'kdf' | 'crypt', fraction: number) => setJob({ status: 'working', phase, fraction });
@@ -104,7 +140,9 @@ export default function App() {
     setPw('');
     setPw2('');
     setNote('');
-    setResult({ mode: 'lock', seal: r.seal, name: kind === 'file' ? file!.name : '', blob: r.blob, text: r.text, kind });
+    const locked: Result = { mode: 'lock', seal: r.seal, name: kind === 'file' ? file!.name : '', blob: r.blob, text: r.text, kind };
+    setResult(locked);
+    remember(locked, kind, r.blob?.size ?? r.text?.length ?? 0);
     setJob({ status: 'done' });
   }
 
@@ -121,7 +159,9 @@ export default function App() {
     }
     if (r.kind !== 'unlocked') return;
     setPw('');
-    setResult({ mode: 'unlock', seal: r.seal, name: r.name, type: r.type, blob: r.blob, note: r.note, params: r.params });
+    const opened: Result = { mode: 'unlock', seal: r.seal, name: r.name, type: r.type, blob: r.blob, note: r.note, params: r.params };
+    setResult(opened);
+    remember(opened, r.note !== undefined ? 'note' : 'file', r.blob?.size ?? new TextEncoder().encode(r.note ?? '').length);
     setJob({ status: 'done' });
   }
 
@@ -194,11 +234,9 @@ export default function App() {
 
   return (
     <div className="page">
-      <header className="top band">
-        <div className="brand">
-          <h1>ArgonVault</h1>
+      <Hero>
+        <div className="hero-row">
           <p className="lede">Lock files and notes with a password. It all happens on this device. Nothing is uploaded.</p>
-        </div>
         <RubberSegment
           aria-label="Choose lock or unlock"
           items={[
@@ -216,10 +254,12 @@ export default function App() {
           radius={999}
           className="modes"
         />
-      </header>
+        </div>
+      </Hero>
 
       <main className="band">
-        <section className="doc" aria-labelledby="doc-title">
+        <AnimatedContent trigger="mount" distance={28} duration={0.9} delay={0.35} blur={6}>
+        <section className="doc" aria-labelledby="doc-title" ref={docRef}>
           <div className="seal-col">
             <Seal seed={result?.seal ?? null} state={sealState} code={code} />
             <div className="seal-meta" aria-live="polite">
@@ -493,6 +533,20 @@ export default function App() {
           </div>
         </section>
 
+        </AnimatedContent>
+
+        <div className="lower">
+          <Session
+            entries={entries}
+            now={now}
+            theme={theme}
+            onSelect={reopen}
+            onClear={() => {
+              kept.current.clear();
+              setEntries([]);
+            }}
+          />
+        <AnimatedContent trigger="scroll" distance={36} duration={0.8} threshold={0.15} className="spec-wrap">
         <section className="spec" aria-labelledby="spec-title">
           <h2 id="spec-title">How your file is protected</h2>
           <dl>
@@ -530,6 +584,8 @@ export default function App() {
             </div>
           </dl>
         </section>
+        </AnimatedContent>
+        </div>
       </main>
     </div>
   );

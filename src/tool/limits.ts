@@ -12,12 +12,12 @@ const GB = 1024 * MB;
  */
 // End-to-end tests lower this threshold (window.__ARGONVAULT_TEST__) so streaming can be tested with small files.
 const testHooks = (globalThis as { __ARGONVAULT_TEST__?: { streamFrom?: number } }).__ARGONVAULT_TEST__;
-export const STREAM_FROM = testHooks?.streamFrom ?? 200 * MB;
-export const STREAM_LIMIT = 64 * GB;
+const STREAM_FROM = testHooks?.streamFrom ?? 200 * MB;
+const STREAM_LIMIT = 64 * GB;
 /** Locked files larger than this aren't kept in the session list for saving again. */
 export const KEEP_LIMIT = 64 * MB;
 
-export function memoryLimit(): number {
+function memoryLimit(): number {
   const ram = (navigator as Navigator & { deviceMemory?: number }).deviceMemory;
   return ram !== undefined && ram <= 4 ? 512 * MB : 1 * GB;
 }
@@ -40,16 +40,16 @@ export function sizeLimit(): number {
 }
 
 /**
- * Asks where to save. Must run straight from a click or key press. Returns
- * null if the user closed the dialog.
+ * Asks where to save. Must run straight from a click or key press. Returns the
+ * chosen file, 'cancelled' if the user closed the dialog, or 'failed' if the
+ * browser refused to show it.
  */
-export async function pickSaveTarget(suggestedName: string): Promise<FileSystemFileHandle | null> {
+export async function pickSaveTarget(suggestedName: string): Promise<FileSystemFileHandle | 'cancelled' | 'failed'> {
   const picker = (window as unknown as { showSaveFilePicker: SavePicker }).showSaveFilePicker;
   try {
     return await picker({ suggestedName, id: 'argonvault' });
   } catch (e) {
-    if ((e as Error)?.name === 'AbortError') return null;
-    throw e;
+    return (e as Error)?.name === 'AbortError' ? 'cancelled' : 'failed';
   }
 }
 

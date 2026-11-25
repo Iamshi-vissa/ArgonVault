@@ -32,8 +32,8 @@
 import { createSha256 } from './hash';
 
 export const MAGIC = [0x41, 0x47, 0x56] as const; // "AGV"
-export const VERSION = 1;
-export const KDF_ARGON2ID = 1;
+const VERSION = 1;
+const KDF_ARGON2ID = 1;
 export const HEADER_LEN = 67;
 const COMMIT_OFFSET = 35;
 const TAG_LEN = 16;
@@ -61,12 +61,12 @@ export type DeriveFn = (
   onProgress?: (p: number) => void
 ) => Promise<Uint8Array>;
 
-export interface Source {
+interface Source {
   size: number;
   read(offset: number, length: number): Promise<Uint8Array>;
 }
 
-export type Progress = (phase: 'kdf' | 'crypt', fraction: number) => void;
+type Progress = (phase: 'kdf' | 'crypt', fraction: number) => void;
 
 export class LockerError extends Error {
   constructor(
@@ -81,14 +81,14 @@ const subtle = globalThis.crypto.subtle;
 const enc = new TextEncoder();
 const dec = new TextDecoder('utf-8', { fatal: true });
 
-export function randomBytes(n: number): Uint8Array {
+function randomBytes(n: number): Uint8Array {
   const b = new Uint8Array(n);
   globalThis.crypto.getRandomValues(b);
   return b;
 }
 
 /** NFC so the same password typed on different keyboards gives the same key. */
-export function passwordBytes(password: string): Uint8Array {
+function passwordBytes(password: string): Uint8Array {
   if (!password) throw new LockerError('bad-input', 'Enter a password.');
   return enc.encode(password.normalize('NFC'));
 }
@@ -166,14 +166,14 @@ export function truncateName(name: string): string {
 /** Receives output in order. When given, nothing is kept in memory. */
 export type Sink = (part: Uint8Array) => Promise<void> | void;
 
-export interface LockOptions {
+interface LockOptions {
   params?: KdfParams;
   chunkLog2?: number;
   onProgress?: Progress;
   sink?: Sink;
 }
 
-export interface Locked {
+interface Locked {
   /** The locked file, in pieces. Empty when a sink was given. */
   parts: Uint8Array[];
   /** First 8 bytes of the key commitment: same file + same password = same seal. */
@@ -260,12 +260,12 @@ export async function lock(
   return { parts, seal: commitment.slice(0, 8), fileHash: hash.digest() };
 }
 
-export interface HeaderInfo {
+interface HeaderInfo {
   params: KdfParams;
   chunkLog2: number;
 }
 
-export function readHeader(header: Uint8Array): HeaderInfo {
+function readHeader(header: Uint8Array): HeaderInfo {
   if (header.length < HEADER_LEN || header[0] !== MAGIC[0] || header[1] !== MAGIC[1] || header[2] !== MAGIC[2])
     throw new LockerError('not-locker', 'This isn’t an ArgonVault file.');
   if (header[3] !== VERSION || header[4] !== KDF_ARGON2ID)
@@ -281,7 +281,7 @@ export function readHeader(header: Uint8Array): HeaderInfo {
   return { params: { m, t, p }, chunkLog2 };
 }
 
-export interface Unlocked {
+interface Unlocked {
   name: string;
   type: string;
   /** The original contents, in pieces. Empty when a sink was given. */
@@ -292,7 +292,7 @@ export interface Unlocked {
   fileHash: Uint8Array;
 }
 
-export interface UnlockOptions {
+interface UnlockOptions {
   onProgress?: Progress;
   /**
    * Receives the original contents chunk by chunk, each only after it has been
@@ -434,13 +434,13 @@ const ARMOR = {
   note: ['-----BEGIN ARGONVAULT LOCKED NOTE-----', '-----END ARGONVAULT LOCKED NOTE-----']
 };
 
-export function toBase64(bytes: Uint8Array): string {
+function toBase64(bytes: Uint8Array): string {
   let s = '';
   for (let i = 0; i < bytes.length; i += 0x8000) s += String.fromCharCode(...bytes.subarray(i, i + 0x8000));
   return btoa(s);
 }
 
-export function fromBase64(b64: string): Uint8Array {
+function fromBase64(b64: string): Uint8Array {
   const s = atob(b64);
   const out = new Uint8Array(s.length);
   for (let i = 0; i < s.length; i++) out[i] = s.charCodeAt(i);

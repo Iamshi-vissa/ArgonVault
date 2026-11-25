@@ -3,7 +3,7 @@ import CryptoWorker from './worker?worker&inline';
 import type { Reply, Request } from './worker';
 
 type Done = Exclude<Reply, { kind: 'progress' }>;
-export type ProgressFn = (phase: 'kdf' | 'crypt', fraction: number) => void;
+type ProgressFn = (phase: 'kdf' | 'crypt', fraction: number) => void;
 
 let worker: Worker | null = null;
 let nextId = 1;

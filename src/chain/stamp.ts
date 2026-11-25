@@ -182,12 +182,19 @@ async function receipt(txHash: string, timeoutMs = 180_000) {
   throw new ChainError('timeout', 'The network is slow to confirm. Check the transaction link later.');
 }
 
+/** Reads a stamp. An empty reply means there's no contract at that address on this network. */
+async function readStamp(to: string, fileHash: Uint8Array | string): Promise<StampInfo | null> {
+  const result = await call<string>('eth_call', [{ to, data: encodeStampOf(fileHash) }, 'latest']);
+  if (!result || result === '0x')
+    throw new ChainError('no-contract', 'There’s no timestamp contract at the configured address on Sepolia.');
+  return decodeStampOf(result);
+}
+
 /** Looks up when a locked file was first timestamped. */
 export async function lookup(fileHash: Uint8Array | string): Promise<StampInfo | null> {
   const to = needContract();
   await ensureSepolia();
-  const result = await call<string>('eth_call', [{ to, data: encodeStampOf(fileHash) }, 'latest']);
-  return decodeStampOf(result);
+  return readStamp(to, fileHash);
 }
 
 export type StampStep = 'connecting' | 'network' | 'checking' | 'confirm' | 'mining';
@@ -206,13 +213,20 @@ export async function stamp(
   onStep('network');
   await ensureSepolia();
   onStep('checking');
-  const before = decodeStampOf(await call<string>('eth_call', [{ to, data: encodeStampOf(fileHash) }, 'latest']));
+  const before = await readStamp(to, fileHash);
   if (before) return { ...before, alreadyStamped: true };
   onStep('confirm');
   const txHash = await call<string>('eth_sendTransaction', [{ from, to, data: encodeStamp(fileHash) }]);
   onStep('mining');
-  await receipt(txHash);
-  const after = decodeStampOf(await call<string>('eth_call', [{ to, data: encodeStampOf(fileHash) }, 'latest']));
+  try {
+    await receipt(txHash);
+  } catch (e) {
+    // Someone may have stamped the same file between our check and our transaction: the earlier stamp stands.
+    const raced = await readStamp(to, fileHash);
+    if (raced) return { ...raced, alreadyStamped: true };
+    throw e;
+  }
+  const after = await readStamp(to, fileHash);
   if (!after) throw new ChainError('failed', 'The transaction confirmed, but the stamp wasn’t found.');
   return { ...after, txHash, alreadyStamped: false };
 }

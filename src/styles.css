@@ -97,13 +97,6 @@ body {
 .wordmark-canvas {
   min-height: 0 !important;
 }
-.hero-row {
-  display: flex;
-  flex-wrap: wrap;
-  align-items: center;
-  justify-content: space-between;
-  gap: 16px 32px;
-}
 .lede {
   margin: 0;
   max-width: 46ch;
@@ -560,7 +553,7 @@ body {
   gap: 12px;
 }
 
-/* Session list and specs */
+/* Session list and tips */
 .lower {
   display: grid;
   grid-template-columns: minmax(0, 0.9fr) minmax(0, 1.1fr);
@@ -591,32 +584,6 @@ body {
 .session-list {
   margin-bottom: 12px;
 }
-.spec {
-  margin: 0;
-}
-.spec h2 {
-  margin: 0 0 20px;
-  font: 500 clamp(26px, 3vw, 34px) / 1.05 var(--display);
-}
-.spec dl {
-  margin: 0;
-  display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(min(100%, 240px), 1fr));
-  gap: 26px 40px;
-  border-top: 1px solid var(--rule);
-  padding-top: 24px;
-}
-.spec dt {
-  font: 500 20px/1.2 var(--display);
-  margin-bottom: 6px;
-}
-.spec dd {
-  margin: 0;
-  color: var(--muted);
-  font-size: 15px;
-  max-width: 46ch;
-  text-wrap: pretty;
-}
 
 @media (max-width: 860px) {
   .doc,
@@ -631,10 +598,6 @@ body {
   }
 }
 @media (max-width: 600px) {
-  .hero-row {
-    flex-direction: column;
-    align-items: stretch;
-  }
   .wordmark {
     height: 118px;
     margin-left: -3%;
@@ -668,7 +631,6 @@ body {
   position: sticky;
   top: 0;
   z-index: 10;
-  backdrop-filter: blur(8px);
 }
 .bar-inner {
   max-width: 1240px;
@@ -825,6 +787,11 @@ body {
 .scroll-cue:focus-visible {
   outline: 2px solid var(--line);
   outline-offset: 3px;
+}
+/* Letter-weight changes from VariableProximity only re-lay out their own line, not the page. */
+.prox-heading,
+.lede.big {
+  contain: layout;
 }
 .prox-heading {
   font-weight: 500;
@@ -1065,7 +1032,7 @@ html {
   gap: 10px;
   justify-items: start;
 }
-.stamp h3 {
+.stamp h2 {
   margin: 0;
   font: 500 21px/1.2 var(--display);
 }

@@ -14,7 +14,7 @@ import { useCallback, useEffect, useLayoutEffect, useReducer, useRef } from 'rea
  * match: a result from a job the user has moved on from can't reach the screen.
  */
 
-export type Phase = 'kdf' | 'crypt';
+type Phase = 'kdf' | 'crypt';
 
 export type JobState<R> =
   | { status: 'idle'; ticket: number }
@@ -22,7 +22,7 @@ export type JobState<R> =
   | { status: 'failed'; ticket: number; code: string; message: string }
   | { status: 'done'; ticket: number; result: R };
 
-export type JobAction<R> =
+type JobAction<R> =
   | { type: 'start'; ticket: number }
   | { type: 'progress'; ticket: number; phase: Phase; fraction: number }
   | { type: 'finish'; ticket: number; result: R }

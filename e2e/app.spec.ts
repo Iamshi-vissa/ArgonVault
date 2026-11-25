@@ -228,3 +228,41 @@ test('benchmark measures this device', async ({ page }) => {
   await expect(page.locator('.bench-table')).toBeVisible({ timeout: 120_000 });
   await expect(page.locator('.bench-table')).toContainText('MB/s');
 });
+
+test('scrolling the landing page does no per-frame layout work (regression guard for scroll lag)', async ({ page }) => {
+  await page.goto('/');
+  await page.waitForTimeout(4000); // let the intro finish
+  await page.mouse.move(700, 450);
+  const cdp = await page.context().newCDPSession(page);
+  await cdp.send('Performance.enable');
+  const layouts = async () =>
+    (await cdp.send('Performance.getMetrics')).metrics.find(m => m.name === 'LayoutCount')!.value;
+  const before = await layouts();
+  for (let i = 0; i < 40; i++) {
+    await page.mouse.wheel(0, 90);
+    await page.waitForTimeout(16);
+  }
+  for (let i = 0; i < 40; i++) {
+    await page.mouse.wheel(0, -90);
+    await page.waitForTimeout(16);
+  }
+  // Measured before the fix: 38 layouts for this scroll; after: about 7.
+  expect((await layouts()) - before).toBeLessThan(20);
+});
+
+test('blockchain timestamp: a wrong contract address gives a clear message (mock wallet)', async ({ page }) => {
+  await page.addInitScript(() => {
+    localStorage.setItem('argonvault.stampContract', '0x' + '00'.repeat(19) + '01');
+    (window as unknown as { ethereum: unknown }).ethereum = {
+      async request({ method }: { method: string }) {
+        if (method === 'eth_requestAccounts') return ['0x' + '12'.repeat(20)];
+        if (method === 'eth_chainId') return '0xaa36a7';
+        if (method === 'eth_call') return '0x'; // no code at that address
+        throw new Error('unexpected ' + method);
+      }
+    };
+  });
+  await lockFile(page, tempFile('memo.txt', randomBytes(2000)));
+  await page.getByRole('button', { name: 'Timestamp with my wallet' }).click();
+  await expect(page.locator('.stamp [role=alert]')).toContainText('no timestamp contract');
+});

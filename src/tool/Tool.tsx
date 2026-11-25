@@ -156,8 +156,12 @@ export default function Tool({
     let target: FileSystemFileHandle | undefined;
     if (what === 'file' && source && shouldStream(source.size)) {
       const picked = await pickSaveTarget(lockedName(name, false));
-      if (!picked) {
-        setNotice('Choose where to save the locked file to lock a large file.');
+      if (typeof picked === 'string') {
+        setNotice(
+          picked === 'cancelled'
+            ? 'Choose where to save the locked file to lock a large file.'
+            : 'The browser didn’t open the save dialog. Try holding the button again.'
+        );
         return;
       }
       target = picked;
@@ -203,8 +207,12 @@ export default function Tool({
     let target: FileSystemFileHandle | undefined;
     if (kind === 'file' && file && shouldStream(file.size)) {
       const picked = await pickSaveTarget(originalNameGuess(file.name));
-      if (!picked) {
-        setNotice('Choose where to save the opened file to open a large file.');
+      if (typeof picked === 'string') {
+        setNotice(
+          picked === 'cancelled'
+            ? 'Choose where to save the opened file to open a large file.'
+            : 'The browser didn’t open the save dialog. Choose Unlock again.'
+        );
         return;
       }
       target = picked;
@@ -300,7 +308,13 @@ export default function Tool({
               <HugeiconsIcon icon={ArrowLeft01Icon} size={18} strokeWidth={2} />
               Back
             </button>
-            <a className="brand-link" href="#" aria-label="ArgonVault home">
+            <a
+              className="brand-link"
+              href="#"
+              aria-label="ArgonVault home"
+              aria-disabled={busy}
+              onClick={e => busy && e.preventDefault()}
+            >
               ArgonVault
             </a>
           </div>

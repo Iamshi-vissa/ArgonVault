@@ -14,7 +14,8 @@
     "typecheck": "tsc",
     "lint": "oxlint --deny-warnings",
     "format": "prettier --write .",
-    "format:check": "prettier --check ."
+    "format:check": "prettier --check .",
+    "deadcode": "knip"
   },
   "license": "MIT",
   "dependencies": {
@@ -47,7 +48,7 @@
     "@types/react": "19.3.3",
     "@types/react-dom": "19.3.0",
     "@vitejs/plugin-react": "6.3.0",
-    "ethers": "6.17.0",
+    "knip": "6.48.0",
     "oxlint": "1.95.0",
     "prettier": "3.10.1",
     "solc": "0.8.39",

@@ -13,6 +13,9 @@ Lock files and notes with a password, entirely in the browser. Nothing is upload
 - Password strength checking (zxcvbn) and a six-word **EFF Diceware** passphrase generator (≈77.5 bits)
 - A built-in **benchmark** that measures Argon2id and AES-GCM on the device you're using
 - All cryptography runs in a **Web Worker**; the deployed site's Content Security Policy forbids every network connection and every inline script
+- An olive and beige interface (light and dark) built with React Bits components. The landing page loads in about 130 KB (compressed), and its animations pause while you scroll
+
+**Live site:** https://argonvault.vercel.app
 
 **Documents:** [design and threat model](docs/DESIGN.md) · [measurements and attack estimates](docs/BENCHMARKS.md) · [code walkthrough](docs/WALKTHROUGH.md)
 
@@ -26,6 +29,8 @@ npm run build            # dist/: the multi-file site that Vercel serves
 npm run test:e2e         # end-to-end tests on the built site (Playwright)
 npm run lint             # oxlint
 npm run format:check     # Prettier
+npm run deadcode         # knip: unused files, exports and dependencies
+npm run typecheck        # TypeScript
 npm run build:standalone # dist-standalone/index.html: one file that works offline, even from disk
 npm run compile:contract # recompile contracts/ArgonVaultTimestamps.sol into src/chain/artifact.json
 ```
@@ -33,6 +38,8 @@ npm run compile:contract # recompile contracts/ArgonVaultTimestamps.sol into src
 For end-to-end tests, run `npx playwright install chromium` once, or set `CHROME_PATH` to an installed Chrome.
 
 `npm run build:artifact` makes the single-file variant published as a Claude artifact. There, the host only lets pages save common file types, so locked files are saved as ASCII-armoured `.txt` and restored files with unusual extensions come inside a `.zip`. Every build reads every format.
+
+Requires Node.js 20 or newer.
 
 ## Blockchain timestamps: one-time setup
 
@@ -107,7 +114,9 @@ The full threat model is in [docs/DESIGN.md](docs/DESIGN.md).
 
 ## Tests
 
-- **Unit tests** (`test/format.test.ts`, Vitest):
+37 unit and contract tests (Vitest) and 9 end-to-end tests (Playwright).
+
+- **Unit tests** (`test/format.test.ts`):
   - Round trips at chunk-boundary sizes and with Unicode passwords.
   - Fresh randomness on every lock.
   - Every tampering case: bit flips in the header and body, truncation, appending, swapped chunks, splicing from another file, hostile Argon2 cost, random junk.
@@ -121,10 +130,11 @@ The full threat model is in [docs/DESIGN.md](docs/DESIGN.md).
   - Lock, then unlock to the identical bytes. A wrong password and a tampered file are both refused.
   - Notes as pasted text.
   - Streaming large files to disk and back.
-  - The blockchain flow with a mock wallet, checking the exact transaction data.
+  - The blockchain flow with a mock wallet, checking the exact transaction data, and the message for a wrong contract address.
   - The benchmark.
+  - A performance guard: scrolling the landing page must not trigger layout work every frame.
 
-GitHub Actions runs lint, formatting, types, a check that the contract artifact is current, all tests, the build and the end-to-end tests on every push.
+GitHub Actions runs lint, formatting, a dead-code check, types, a check that the contract artifact is current, all tests, the build and the end-to-end tests on every push.
 
 ## Project layout
 

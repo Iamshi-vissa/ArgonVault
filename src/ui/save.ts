@@ -29,7 +29,7 @@ async function hostDownloads(): Promise<Downloads | null> {
   }
 }
 
-export type SaveOutcome = 'saved' | 'declined' | 'unavailable';
+type SaveOutcome = 'saved' | 'declined' | 'unavailable';
 
 export async function saveFile(filename: string, data: Blob | string): Promise<SaveOutcome> {
   const dl = await hostDownloads();

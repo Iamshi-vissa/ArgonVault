@@ -66,7 +66,7 @@ export default function StampPanel({ fileHash, mode }: { fileHash: Uint8Array; m
   const busy = view.state === 'busy';
   return (
     <section className="stamp" aria-labelledby="stamp-title">
-      <h3 id="stamp-title">Blockchain timestamp</h3>
+      <h2 id="stamp-title">Blockchain timestamp</h2>
       <p className="sub">
         {mode === 'lock'
           ? 'Optional. Records this locked file’s fingerprint on the Ethereum Sepolia test network, proving it existed today. Nothing about the contents, name or password goes on chain.'

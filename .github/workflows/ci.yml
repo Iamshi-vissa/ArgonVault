@@ -19,6 +19,8 @@ jobs:
         run: npm run lint
       - name: Formatting
         run: npm run format:check
+      - name: Dead code
+        run: npm run deadcode
       - name: Types
         run: npm run typecheck
       - name: Contract artifact is up to date

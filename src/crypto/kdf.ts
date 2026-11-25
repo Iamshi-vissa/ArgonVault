@@ -3,7 +3,7 @@ import { argon2idAsync as argon2Js } from '@noble/hashes/argon2.js';
 import type { DeriveFn } from './format';
 import { wasmAllowed } from './wasm';
 
-export type Engine = 'wasm' | 'js';
+type Engine = 'wasm' | 'js';
 
 let engine: Engine | null = null;
 const pick = (): Engine => (engine ??= typeof WebAssembly === 'object' && wasmAllowed() ? 'wasm' : 'js');

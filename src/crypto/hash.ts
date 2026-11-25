@@ -2,7 +2,7 @@ import { createSHA256 } from 'hash-wasm';
 import { sha256 } from '@noble/hashes/sha2.js';
 import { wasmAllowed } from './wasm';
 
-export interface Hasher {
+interface Hasher {
   update(data: Uint8Array): void;
   digest(): Uint8Array;
 }

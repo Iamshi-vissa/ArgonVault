@@ -29,6 +29,8 @@
  * and type are hidden too: nameLen (u16) ‖ name ‖ typeLen (u8) ‖ type ‖ data.
  */
 
+import { createSha256 } from './hash';
+
 export const MAGIC = [0x41, 0x47, 0x56] as const; // "AGV"
 export const VERSION = 1;
 export const KDF_ARGON2ID = 1;
@@ -161,16 +163,23 @@ export function truncateName(name: string): string {
   return fitUtf8(name.slice(0, name.length - ext.length), 255 - enc.encode(ext).length) + ext;
 }
 
+/** Receives output in order. When given, nothing is kept in memory. */
+export type Sink = (part: Uint8Array) => Promise<void> | void;
+
 export interface LockOptions {
   params?: KdfParams;
   chunkLog2?: number;
   onProgress?: Progress;
+  sink?: Sink;
 }
 
 export interface Locked {
+  /** The locked file, in pieces. Empty when a sink was given. */
   parts: Uint8Array[];
   /** First 8 bytes of the key commitment: same file + same password = same seal. */
   seal: Uint8Array;
+  /** SHA-256 of the whole locked file: what gets timestamped on the blockchain. */
+  fileHash: Uint8Array;
 }
 
 export async function lock(
@@ -213,7 +222,14 @@ export async function lock(
   const count = Math.max(1, Math.ceil(total / CS));
   if (count > 0xffffffff) throw new LockerError('bad-input', 'This file is too large.');
 
-  const parts: Uint8Array[] = [header];
+  const parts: Uint8Array[] = [];
+  const hash = await createSha256();
+  const emit = async (part: Uint8Array) => {
+    hash.update(part);
+    if (opts.sink) await opts.sink(part);
+    else parts.push(part);
+  };
+  await emit(header);
   for (let i = 0; i < count; i++) {
     const off = i * CS;
     const len = Math.min(CS, total - off);
@@ -229,15 +245,19 @@ export async function lock(
       plain.set(await data.read(fileOff, len - filled), filled);
     }
     const ct = await subtle.encrypt(
-      { name: 'AES-GCM', iv: nonce(prefix, i, i === count - 1) as BufferSource, additionalData: header as BufferSource },
+      {
+        name: 'AES-GCM',
+        iv: nonce(prefix, i, i === count - 1) as BufferSource,
+        additionalData: header as BufferSource
+      },
       keys.aes,
       plain as BufferSource
     );
     plain.fill(0);
-    parts.push(new Uint8Array(ct));
+    await emit(new Uint8Array(ct));
     opts.onProgress?.('crypt', (i + 1) / count);
   }
-  return { parts, seal: commitment.slice(0, 8) };
+  return { parts, seal: commitment.slice(0, 8), fileHash: hash.digest() };
 }
 
 export interface HeaderInfo {
@@ -264,17 +284,33 @@ export function readHeader(header: Uint8Array): HeaderInfo {
 export interface Unlocked {
   name: string;
   type: string;
+  /** The original contents, in pieces. Empty when a sink was given. */
   parts: Uint8Array[];
   seal: Uint8Array;
   params: KdfParams;
+  /** SHA-256 of the locked file, to look up its blockchain timestamp. */
+  fileHash: Uint8Array;
+}
+
+export interface UnlockOptions {
+  onProgress?: Progress;
+  /**
+   * Receives the original contents chunk by chunk, each only after it has been
+   * authenticated. A later chunk can still fail, so a sink must be able to
+   * discard what it wrote (File System Access writes commit only on close).
+   */
+  sink?: Sink;
+  /** Called with the original name and type as soon as the first chunk is verified. */
+  onMeta?: (name: string, type: string) => void;
 }
 
 export async function unlock(
   src: Source,
   password: string,
   derive: DeriveFn,
-  onProgress?: Progress
+  opts: UnlockOptions | Progress = {}
 ): Promise<Unlocked> {
+  const { onProgress, sink, onMeta }: UnlockOptions = typeof opts === 'function' ? { onProgress: opts } : opts;
   if (src.size < HEADER_LEN + TAG_LEN) throw new LockerError('not-locker', 'This isn’t an ArgonVault file.');
   const header = (await src.read(0, HEADER_LEN)).slice();
   const info = readHeader(header);
@@ -299,53 +335,77 @@ export async function unlock(
   const lastLen = body - (count - 1) * step;
   if (lastLen < TAG_LEN) throw new LockerError('tampered', 'This file is damaged or was changed after locking.');
 
+  const hash = await createSha256();
+  hash.update(header);
   const plain: Uint8Array[] = [];
+  let name = '';
+  let type = '';
   for (let i = 0; i < count; i++) {
     const len = i === count - 1 ? lastLen : step;
     const ct = await src.read(HEADER_LEN + i * step, len);
-    let pt: ArrayBuffer;
+    hash.update(ct);
+    let pt: Uint8Array;
     try {
-      pt = await subtle.decrypt(
-        { name: 'AES-GCM', iv: nonce(prefix, i, i === count - 1) as BufferSource, additionalData: header as BufferSource },
-        keys.aes,
-        ct as BufferSource
+      pt = new Uint8Array(
+        await subtle.decrypt(
+          {
+            name: 'AES-GCM',
+            iv: nonce(prefix, i, i === count - 1) as BufferSource,
+            additionalData: header as BufferSource
+          },
+          keys.aes,
+          ct as BufferSource
+        )
       );
     } catch {
       throw new LockerError('tampered', 'This file is damaged or was changed after locking.');
     }
-    plain.push(new Uint8Array(pt));
+    if (i === 0) {
+      const meta = parseMeta(pt);
+      name = sanitizeName(meta.name);
+      type = meta.type;
+      onMeta?.(name, type);
+      pt = pt.subarray(meta.length);
+    }
+    if (sink) await sink(pt);
+    else plain.push(pt);
     onProgress?.('crypt', (i + 1) / count);
   }
 
-  // Parse metadata from the front of the first chunk(s).
-  const first = plain[0];
+  return {
+    name,
+    type,
+    parts: plain,
+    seal: header.slice(COMMIT_OFFSET, COMMIT_OFFSET + 8),
+    params: info.params,
+    fileHash: hash.digest()
+  };
+}
+
+/** Reads the name and type stored at the front of the first chunk. */
+function parseMeta(first: Uint8Array): { name: string; type: string; length: number } {
   if (first.length < 3) throw new LockerError('tampered', 'This file is damaged.');
   const nameLen = new DataView(first.buffer, first.byteOffset).getUint16(0, false);
   if (3 + nameLen > first.length) throw new LockerError('tampered', 'This file is damaged.');
   const typeLen = first[2 + nameLen];
-  const metaLen = 3 + nameLen + typeLen;
-  if (metaLen > first.length) throw new LockerError('tampered', 'This file is damaged.');
-  let name: string, type: string;
+  const length = 3 + nameLen + typeLen;
+  if (length > first.length) throw new LockerError('tampered', 'This file is damaged.');
   try {
-    name = dec.decode(first.subarray(2, 2 + nameLen));
-    type = dec.decode(first.subarray(3 + nameLen, metaLen));
+    return {
+      name: dec.decode(first.subarray(2, 2 + nameLen)),
+      type: dec.decode(first.subarray(3 + nameLen, length)),
+      length
+    };
   } catch {
     throw new LockerError('tampered', 'This file is damaged.');
   }
-  plain[0] = first.subarray(metaLen);
-
-  return {
-    name: sanitizeName(name),
-    type,
-    parts: plain,
-    seal: header.slice(COMMIT_OFFSET, COMMIT_OFFSET + 8),
-    params: info.params
-  };
 }
 
 /** A restored name must never contain a path. */
 export function sanitizeName(name: string): string {
-  const n = name.replace(/[\\/:*?"<>|\u0000-\u001f]/g, '_').replace(/^\.+/, '').trim();
+  // Path separators, characters Windows forbids, and control characters all become '_'.
+  const safe = Array.from(name, ch => (ch.charCodeAt(0) < 32 || '\\/:*?"<>|'.includes(ch) ? '_' : ch)).join('');
+  const n = safe.replace(/^\.+/, '').trim();
   return n || 'unlocked-file';
 }
 
@@ -395,7 +455,9 @@ export function armor(bytes: Uint8Array, kind: 'file' | 'note'): string {
 
 /** Returns null if the text has no armour block. */
 export function dearmor(text: string): Uint8Array | null {
-  const m = text.match(/-----BEGIN ARGONVAULT LOCKED (?:FILE|NOTE)-----([\s\S]*?)-----END ARGONVAULT LOCKED (?:FILE|NOTE)-----/);
+  const m = text.match(
+    /-----BEGIN ARGONVAULT LOCKED (?:FILE|NOTE)-----([\s\S]*?)-----END ARGONVAULT LOCKED (?:FILE|NOTE)-----/
+  );
   if (!m) return null;
   const b64 = m[1].replace(/\s+/g, '');
   if (!/^[A-Za-z0-9+/]*={0,2}$/.test(b64)) throw new LockerError('tampered', 'The locked text is damaged.');

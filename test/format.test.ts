@@ -1,7 +1,17 @@
 import { describe, expect, it } from 'vitest';
 import { argon2idAsync } from '@noble/hashes/argon2.js';
 import {
-  armor, bytesSource, concat, dearmor, HEADER_LEN, lock, LockerError, unlock, sanitizeName, truncateName, type KdfParams
+  armor,
+  bytesSource,
+  concat,
+  dearmor,
+  HEADER_LEN,
+  lock,
+  LockerError,
+  unlock,
+  sanitizeName,
+  truncateName,
+  type KdfParams
 } from '../src/crypto/format';
 import { deriveArgon2id } from '../src/crypto/kdf';
 
@@ -153,7 +163,9 @@ describe('Argon2id engines agree', () => {
   it('matches the reference C implementation (known answer)', async () => {
     // Known answer for password "password", salt "somesalt", t=2, m=65536 KiB, p=1 (computed with argon2-cffi, which wraps the reference C code).
     const out = await deriveArgon2id(new TextEncoder().encode('password'), new TextEncoder().encode('somesalt'), {
-      m: 65536, t: 2, p: 1
+      m: 65536,
+      t: 2,
+      p: 1
     });
     expect(Buffer.from(out).toString('hex')).toBe('09316115d5cf24ed5a15a31a3ba326e5cf32edc24702987c02b6566f61913cf7');
   });
@@ -185,5 +197,43 @@ describe('long names and types (regression)', () => {
 
   it('an empty password is refused before any work', async () => {
     expect(await code(lock(bytesSource(rand(10)), 'a', '', '', deriveArgon2id, { params: FAST }))).toBe('bad-input');
+  });
+});
+
+describe('streaming and file fingerprint', () => {
+  const PW = 'correct horse battery staple';
+
+  it('streamed output equals in-memory output, and fileHash is SHA-256 of the locked file', async () => {
+    const data = rand(5 * 4096 + 11);
+    const streamed: Uint8Array[] = [];
+    const r = await lock(bytesSource(data), 'a.bin', '', PW, deriveArgon2id, {
+      params: FAST,
+      chunkLog2: CHUNK,
+      sink: p => void streamed.push(p.slice())
+    });
+    expect(r.parts).toHaveLength(0);
+    const file = concat(streamed);
+    const digest = new Uint8Array(await crypto.subtle.digest('SHA-256', file as BufferSource));
+    expect(r.fileHash).toEqual(digest);
+
+    const out: Uint8Array[] = [];
+    let meta = '';
+    const u = await unlock(bytesSource(file), PW, deriveArgon2id, {
+      sink: p => void out.push(p.slice()),
+      onMeta: n => (meta = n)
+    });
+    expect(meta).toBe('a.bin');
+    expect(concat(out)).toEqual(data);
+    expect(u.fileHash).toEqual(digest);
+  });
+
+  it('a streamed unlock stops at the damaged chunk and reports tampering', async () => {
+    const { file } = await seal(rand(4 * 4096));
+    const t = file.slice();
+    t[HEADER_LEN + 2 * (4096 + 16) + 9] ^= 1; // damage the third chunk
+    const out: Uint8Array[] = [];
+    const result = await code(unlock(bytesSource(t), PW, deriveArgon2id, { sink: p => void out.push(p) }));
+    expect(result).toBe('tampered');
+    expect(out.length).toBe(2); // the caller must discard these: File System Access only commits on close
   });
 });

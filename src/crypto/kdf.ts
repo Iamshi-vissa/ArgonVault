@@ -1,21 +1,9 @@
 import { argon2id as argon2Wasm } from 'hash-wasm';
 import { argon2idAsync as argon2Js } from '@noble/hashes/argon2.js';
 import type { DeriveFn } from './format';
+import { wasmAllowed } from './wasm';
 
 export type Engine = 'wasm' | 'js';
-
-/**
- * Whether this page may compile WebAssembly. A Content Security Policy without
- * 'wasm-unsafe-eval' blocks it; compiling the smallest valid module tells us.
- */
-function wasmAllowed(): boolean {
-  try {
-    new WebAssembly.Module(new Uint8Array([0x00, 0x61, 0x73, 0x6d, 0x01, 0x00, 0x00, 0x00]));
-    return true;
-  } catch {
-    return false;
-  }
-}
 
 let engine: Engine | null = null;
 const pick = (): Engine => (engine ??= typeof WebAssembly === 'object' && wasmAllowed() ? 'wasm' : 'js');

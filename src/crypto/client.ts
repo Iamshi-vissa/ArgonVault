@@ -1,3 +1,4 @@
+// oxlint-disable-next-line import/default -- Vite turns this query import into a Worker constructor
 import CryptoWorker from './worker?worker&inline';
 import type { Reply, Request } from './worker';
 
@@ -23,7 +24,12 @@ function getWorker() {
   worker.onerror = ev => {
     console.error('ArgonVault worker error:', ev.message);
     for (const [id, job] of pending)
-      job.resolve({ id, kind: 'error', code: 'internal', message: 'The encryption engine stopped unexpectedly. Reload the page and try again.' });
+      job.resolve({
+        id,
+        kind: 'error',
+        code: 'internal',
+        message: 'The encryption engine stopped unexpectedly. Reload the page and try again.'
+      });
     pending.clear();
     worker?.terminate();
     worker = null;

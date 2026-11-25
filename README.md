@@ -105,7 +105,9 @@ src/ui/save.ts          saving files (browser download or artifact host)
 src/ui/Hero.tsx         particle wordmark and WebGPU shard background
 src/ui/Session.tsx      list of what was locked or opened this session
 src/rb/                 React Bits components
-src/App.tsx             interface
+src/App.tsx             two pages, routed on #lock / #unlock
+src/Landing.tsx         landing page: about, how to use, details
+src/Tool.tsx            lock and unlock page
 ```
 
 ## Credits

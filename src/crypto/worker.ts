@@ -57,9 +57,9 @@ self.onmessage = async (ev: MessageEvent<Request>) => {
     const head = await src.read(0, 3);
     const binary = head.length === 3 && head[0] === MAGIC[0] && head[1] === MAGIC[1] && head[2] === MAGIC[2];
     if (!binary) {
-      if (req.data.size > 512 * 1024 * 1024) throw new LockerError('not-locker', 'This isn’t a ArgonVault file.');
+      if (req.data.size > 512 * 1024 * 1024) throw new LockerError('not-locker', 'This isn’t an ArgonVault file.');
       const bytes = dearmor(await req.data.text());
-      if (!bytes) throw new LockerError('not-locker', 'This isn’t a ArgonVault file or locked text.');
+      if (!bytes) throw new LockerError('not-locker', 'This isn’t an ArgonVault file or locked text.');
       src = bytesSource(bytes);
     }
     const out = await unlock(src, req.password, deriveArgon2id, progress);

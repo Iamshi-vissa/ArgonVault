@@ -234,7 +234,7 @@ export interface HeaderInfo {
 
 export function readHeader(header: Uint8Array): HeaderInfo {
   if (header.length < HEADER_LEN || header[0] !== MAGIC[0] || header[1] !== MAGIC[1] || header[2] !== MAGIC[2])
-    throw new LockerError('not-locker', 'This isn’t a ArgonVault file.');
+    throw new LockerError('not-locker', 'This isn’t an ArgonVault file.');
   if (header[3] !== VERSION || header[4] !== KDF_ARGON2ID)
     throw new LockerError('unsupported', 'This file was made by a newer version of ArgonVault.');
   const m = new DataView(header.buffer, header.byteOffset).getUint32(5, false);
@@ -262,7 +262,7 @@ export async function unlock(
   derive: DeriveFn,
   onProgress?: Progress
 ): Promise<Unlocked> {
-  if (src.size < HEADER_LEN + TAG_LEN) throw new LockerError('not-locker', 'This isn’t a ArgonVault file.');
+  if (src.size < HEADER_LEN + TAG_LEN) throw new LockerError('not-locker', 'This isn’t an ArgonVault file.');
   const header = (await src.read(0, HEADER_LEN)).slice();
   const info = readHeader(header);
   const pw = passwordBytes(password);

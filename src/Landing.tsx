@@ -1,5 +1,26 @@
+import { useRef } from 'react';
+import { HugeiconsIcon } from '@hugeicons/react';
+import { ArrowDown01Icon } from '@hugeicons/core-free-icons';
 import AnimatedContent from './rb/AnimatedContent';
+import VariableProximity from './rb/VariableProximity';
 import Hero from './ui/Hero';
+
+/** A section heading whose letters thicken and open up as the pointer comes near. */
+function Heading({ id, text }: { id: string; text: string }) {
+  const ref = useRef<HTMLHeadingElement>(null);
+  return (
+    <h2 id={id} ref={ref} className="prox-heading">
+      <VariableProximity
+        label={text}
+        containerRef={ref}
+        fromFontVariationSettings="'wght' 500, 'opsz' 11"
+        toFontVariationSettings="'wght' 900, 'opsz' 28"
+        radius={120}
+        falloff="gaussian"
+      />
+    </h2>
+  );
+}
 
 const LOCK_STEPS = [
   ['Pick what to lock', 'Choose Lock, then drop in a file or write a short note.'],
@@ -50,6 +71,7 @@ const LIMITS = [
 ];
 
 export default function Landing() {
+  const ledeRef = useRef<HTMLParagraphElement>(null);
   return (
     <div className="page landing">
       <Hero>
@@ -58,9 +80,15 @@ export default function Landing() {
           <a href="#how">How to use</a>
           <a href="#details">Details</a>
         </nav>
-        <p className="lede big">
-          Lock files and notes with a password. Everything happens on this device: nothing is uploaded and there’s no
-          account.
+        <p className="lede big" ref={ledeRef}>
+          <VariableProximity
+            label="Lock files and notes with a password. Everything happens on this device: nothing is uploaded and there’s no account."
+            containerRef={ledeRef}
+            fromFontVariationSettings="'wght' 400"
+            toFontVariationSettings="'wght' 800"
+            radius={90}
+            falloff="gaussian"
+          />
         </p>
         <div className="choices">
           <a className="choice lock" href="#lock">
@@ -72,12 +100,16 @@ export default function Landing() {
             <span className="choice-text">Open a locked file with its password and get the original back.</span>
           </a>
         </div>
+        <a className="scroll-cue" href="#about">
+          About, how to use and details
+          <HugeiconsIcon icon={ArrowDown01Icon} size={18} strokeWidth={2} />
+        </a>
       </Hero>
 
       <main>
         <section id="about" className="band about" aria-labelledby="about-title">
           <AnimatedContent trigger="scroll" distance={30} duration={0.8} threshold={0.12}>
-            <h2 id="about-title">About ArgonVault</h2>
+            <Heading id="about-title" text="About ArgonVault" />
             <div className="about-cols">
               <p>
                 ArgonVault turns any file, or a short note, into a locked file that only your password can open. It’s
@@ -95,7 +127,7 @@ export default function Landing() {
 
         <section id="how" className="band how" aria-labelledby="how-title">
           <AnimatedContent trigger="scroll" distance={30} duration={0.8} threshold={0.12}>
-            <h2 id="how-title">How to use it</h2>
+            <Heading id="how-title" text="How to use it" />
             <div className="how-cols">
               {[
                 ['To lock something', LOCK_STEPS, '#lock', 'Start locking'],
@@ -122,7 +154,7 @@ export default function Landing() {
 
         <section id="details" className="band details" aria-labelledby="details-title">
           <AnimatedContent trigger="scroll" distance={30} duration={0.8} threshold={0.12}>
-            <h2 id="details-title">How your file is protected</h2>
+            <Heading id="details-title" text="How your file is protected" />
             <dl className="spec-grid">
               {DETAILS.map(([t, d]) => (
                 <div key={t}>

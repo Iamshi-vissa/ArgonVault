@@ -112,7 +112,8 @@ src/Tool.tsx            lock and unlock page
 
 ## Credits
 
-- UI components from [React Bits](https://reactbits.dev) by David Haz: AeroShards, ParticleText, AnimatedContent, AnimatedList, HoldButton, RubberSegment, StatusMark, DecryptedText (MIT + Commons Clause, used as part of this application).
+- UI components from [React Bits](https://reactbits.dev) by David Haz: AeroShards, ParticleText, VariableProximity, AnimatedContent, AnimatedList, HoldButton, RubberSegment, StatusMark, DecryptedText (MIT + Commons Clause, used as part of this application).
+- VariableProximity is changed to use the app's self-hosted variable fonts (Bodoni Moda, Hanken Grotesk) instead of loading Roboto Flex from Google, which the security policy would block.
 - AeroShards needs WebGPU (current Chrome, Edge and Safari). Without it, the page simply leaves the shards out.
 - [EFF Large Wordlist](https://www.eff.org/dice) (CC BY 3.0 US).
 - [hash-wasm](https://github.com/Daninet/hash-wasm), [GSAP](https://gsap.com), [Hugeicons](https://hugeicons.com), [vgpu](https://github.com/vercel-labs/vgpu), [@noble/hashes](https://github.com/paulmillr/noble-hashes), [zxcvbn-ts](https://github.com/zxcvbn-ts/zxcvbn), [fflate](https://github.com/101arrowz/fflate).

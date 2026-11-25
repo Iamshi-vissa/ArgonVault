@@ -44,6 +44,8 @@ LAYOUT  Hero band; one document panel (seal left, form right); session list besi
 }
 html {
   background: var(--bg);
+  /* Keep Bodoni's sturdier small-size drawing at every size; very thin hairlines break up at large sizes. */
+  font-optical-sizing: none;
 }
 body {
   margin: 0;
@@ -747,8 +749,56 @@ body {
 .hero-nav a:hover {
   border-bottom-color: var(--line);
 }
+.landing .hero {
+  min-height: 100vh;
+  min-height: 100svh;
+  display: flex;
+  flex-direction: column;
+}
+.landing .hero-inner {
+  flex: 1;
+  width: 100%;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  padding-top: clamp(72px, 9vh, 110px);
+  padding-bottom: clamp(80px, 11vh, 120px);
+}
 .landing .wordmark {
-  margin-top: clamp(28px, 4vw, 44px);
+  height: clamp(140px, 19vw, 240px);
+  max-width: 940px;
+}
+.scroll-cue {
+  position: absolute;
+  left: 50%;
+  bottom: clamp(18px, 3vh, 32px);
+  transform: translateX(-50%);
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  padding: 10px 4px;
+  color: var(--muted);
+  font-size: 15px;
+  font-weight: 600;
+  text-decoration: none;
+  white-space: nowrap;
+}
+.scroll-cue:hover {
+  color: var(--ink);
+}
+.scroll-cue svg {
+  animation: nudge 2.4s ease-in-out infinite;
+}
+@keyframes nudge {
+  0%, 60%, 100% { transform: translateY(0); }
+  30% { transform: translateY(4px); }
+}
+.scroll-cue:focus-visible {
+  outline: 2px solid var(--line);
+  outline-offset: 3px;
+}
+.prox-heading {
+  font-weight: 500;
 }
 .lede.big {
   font-size: clamp(17px, 1.6vw, 20px);
@@ -769,25 +819,18 @@ body {
   padding: 22px 24px 24px;
   border-radius: 18px;
   text-decoration: none;
-  border: 1px solid var(--rule);
-  background: color-mix(in srgb, var(--panel) 85%, transparent);
+  border: 1px solid color-mix(in srgb, var(--ink) 28%, transparent);
+  background: transparent;
   color: var(--ink);
   transition: transform 160ms ease, border-color 160ms ease, background-color 160ms ease;
 }
 .choice:hover {
   border-color: var(--line);
+  background: color-mix(in srgb, var(--line) 8%, transparent);
   transform: translateY(-2px);
 }
 .choice:active {
   transform: translateY(0) scale(0.99);
-}
-.choice.lock {
-  background: var(--accent);
-  border-color: var(--accent);
-  color: var(--on-accent);
-}
-.choice.lock:hover {
-  background: color-mix(in srgb, var(--accent) 88%, var(--ink));
 }
 .choice-title {
   font: 500 clamp(28px, 3vw, 36px) / 1 var(--display);
@@ -932,11 +975,17 @@ html {
     grid-template-columns: minmax(0, 1fr);
   }
   .hero-nav {
-    position: static;
-    margin-bottom: 4px;
+    top: 14px;
+    right: auto;
+    left: max(4vw, 16px);
+    gap: 4px 20px;
+  }
+  .landing .hero-inner {
+    padding-top: 72px;
   }
   .landing .wordmark {
     margin-top: 8px;
+    height: clamp(110px, 24vw, 170px);
   }
 }
 @media (max-width: 600px) {
@@ -959,6 +1008,9 @@ html {
   }
 }
 @media (prefers-reduced-motion: reduce) {
+  .scroll-cue svg {
+    animation: none;
+  }
   .back {
     transition: none;
   }

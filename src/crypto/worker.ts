@@ -77,7 +77,19 @@ self.onmessage = async (ev: MessageEvent<Request>) => {
         : { blob: new Blob(out.parts as BlobPart[], { type: out.type || 'application/octet-stream' }) })
     });
   } catch (e) {
-    const err = e instanceof LockerError ? e : new LockerError('bad-input', (e as Error)?.message || 'Something went wrong.');
-    post({ id: req.id, kind: 'error', code: err.code, message: err.message });
+    if (e instanceof LockerError) {
+      post({ id: req.id, kind: 'error', code: e.code, message: e.message });
+      return;
+    }
+    const text = String((e as Error)?.message ?? e);
+    const memory = e instanceof RangeError || /memory|allocation|out of bounds/i.test(text);
+    post({
+      id: req.id,
+      kind: 'error',
+      code: memory ? 'memory' : 'internal',
+      message: memory
+        ? 'This device ran out of memory. Try Standard key strength, or a smaller file.'
+        : 'Something went wrong inside the encryption engine. Reload the page and try again.'
+    });
   }
 };

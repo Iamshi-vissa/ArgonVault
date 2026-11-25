@@ -128,10 +128,23 @@ function nonce(prefix: Uint8Array, index: number, last: boolean): Uint8Array {
   return n;
 }
 
+/** Longest prefix of `text` whose UTF-8 encoding fits in `max` bytes, never splitting a character. */
+function fitUtf8(text: string, max: number): string {
+  if (enc.encode(text).length <= max) return text;
+  let out = '';
+  let used = 0;
+  for (const ch of text) {
+    const n = enc.encode(ch).length;
+    if (used + n > max) break;
+    out += ch;
+    used += n;
+  }
+  return out;
+}
+
 function encodeMeta(name: string, type: string): Uint8Array {
-  let nameB = enc.encode(name.normalize('NFC'));
-  if (nameB.length > 255) nameB = enc.encode(truncateName(name));
-  const typeB = enc.encode(type).slice(0, 255);
+  const nameB = enc.encode(truncateName(name.normalize('NFC')));
+  const typeB = enc.encode(fitUtf8(type, 255));
   const meta = new Uint8Array(2 + nameB.length + 1 + typeB.length);
   new DataView(meta.buffer).setUint16(0, nameB.length, false);
   meta.set(nameB, 2);
@@ -140,12 +153,12 @@ function encodeMeta(name: string, type: string): Uint8Array {
   return meta;
 }
 
-function truncateName(name: string): string {
+/** Keeps a name within 255 bytes, preserving a short extension. */
+export function truncateName(name: string): string {
+  if (enc.encode(name).length <= 255) return name;
   const dot = name.lastIndexOf('.');
   const ext = dot > 0 && name.length - dot <= 12 ? name.slice(dot) : '';
-  let base = name.slice(0, name.length - ext.length);
-  while (enc.encode(base + ext).length > 255) base = base.slice(0, -1);
-  return base + ext;
+  return fitUtf8(name.slice(0, name.length - ext.length), 255 - enc.encode(ext).length) + ext;
 }
 
 export interface LockOptions {
@@ -308,6 +321,7 @@ export async function unlock(
   const first = plain[0];
   if (first.length < 3) throw new LockerError('tampered', 'This file is damaged.');
   const nameLen = new DataView(first.buffer, first.byteOffset).getUint16(0, false);
+  if (3 + nameLen > first.length) throw new LockerError('tampered', 'This file is damaged.');
   const typeLen = first[2 + nameLen];
   const metaLen = 3 + nameLen + typeLen;
   if (metaLen > first.length) throw new LockerError('tampered', 'This file is damaged.');

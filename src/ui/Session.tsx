@@ -1,5 +1,6 @@
 import { HugeiconsIcon } from '@hugeicons/react';
 import { FileLockedIcon, LockKeyholeOpenIcon, Note01Icon } from '@hugeicons/core-free-icons';
+import { useState } from 'react';
 import AnimatedList, { type AnimatedListEntry } from '../rb/AnimatedList';
 import type { Theme } from './useTheme';
 
@@ -76,6 +77,7 @@ export default function Session({
   onSelect: (e: SessionEntry) => void;
   onClear: () => void;
 }) {
+  const [hint, setHint] = useState('');
   const items: AnimatedListEntry[] = entries.map(e => ({
     id: e.id,
     icon: (
@@ -98,7 +100,14 @@ export default function Session({
       <div className="session-head">
         <h2 id="session-title">This session</h2>
         {entries.length > 0 && (
-          <button type="button" className="link" onClick={onClear}>
+          <button
+            type="button"
+            className="link"
+            onClick={() => {
+              setHint('');
+              onClear();
+            }}
+          >
             Clear list
           </button>
         )}
@@ -112,7 +121,16 @@ export default function Session({
         <>
           <AnimatedList
             items={items}
-            onItemSelect={(_, i) => onSelect(entries[i])}
+            onItemSelect={(_, i) => {
+              const e = entries[i];
+              if (!e) return;
+              setHint(
+                e.action === 'locked'
+                  ? ''
+                  : 'Opened files aren’t kept. To save it again, unlock the locked file again.'
+              );
+              if (e.action === 'locked') onSelect(e);
+            }}
             selectOnHover={false}
             animation="pop"
             theme={theme}
@@ -123,6 +141,11 @@ export default function Session({
             style={LIST_VARS[theme]}
             className="session-list"
           />
+          {hint && (
+            <p className="sub" role="status">
+              {hint}
+            </p>
+          )}
           <p className="sub">
             Locked items can be saved again. Opened files aren’t kept in this list, so their contents aren’t held once you move on.
           </p>

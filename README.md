@@ -17,7 +17,7 @@ Lock files and notes with a password, entirely in the browser. Nothing is upload
 ```bash
 npm install
 npm run dev          # development server
-npm test             # 23 tests: round trips and attack cases
+npm test             # 26 tests: round trips, attack cases and regressions
 npm run build        # dist/index.html: one self-contained file that works offline
 ```
 

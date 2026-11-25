@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import { argon2idAsync } from '@noble/hashes/argon2.js';
 import {
-  armor, bytesSource, concat, dearmor, HEADER_LEN, lock, LockerError, unlock, sanitizeName, type KdfParams
+  armor, bytesSource, concat, dearmor, HEADER_LEN, lock, LockerError, unlock, sanitizeName, truncateName, type KdfParams
 } from '../src/crypto/format';
 import { deriveArgon2id } from '../src/crypto/kdf';
 
@@ -156,5 +156,34 @@ describe('Argon2id engines agree', () => {
       m: 65536, t: 2, p: 1
     });
     expect(Buffer.from(out).toString('hex')).toBe('09316115d5cf24ed5a15a31a3ba326e5cf32edc24702987c02b6566f61913cf7');
+  });
+});
+
+describe('long names and types (regression)', () => {
+  const bytes = (s: string) => new TextEncoder().encode(s).length;
+
+  it('truncates a long multi-byte name without splitting a character, keeping the extension', () => {
+    const name = 'संग्रह-'.repeat(40) + '.pdf';
+    const t = truncateName(name);
+    expect(bytes(t)).toBeLessThanOrEqual(255);
+    expect(t.endsWith('.pdf')).toBe(true);
+    expect(t).not.toContain('\uFFFD');
+  });
+
+  it('a file with a 600-byte name and a multi-byte type still opens', async () => {
+    const name = '文件'.repeat(100) + '.txt';
+    const type = 'application/x-' + 'ü'.repeat(200);
+    const r = await lock(bytesSource(rand(50)), name, type, 'correct horse battery staple', deriveArgon2id, {
+      params: FAST,
+      chunkLog2: CHUNK
+    });
+    const out = await unlock(bytesSource(concat(r.parts)), 'correct horse battery staple', deriveArgon2id);
+    expect(out.name.endsWith('.txt')).toBe(true);
+    expect(bytes(out.name)).toBeLessThanOrEqual(255);
+    expect(out.type.startsWith('application/x-ü')).toBe(true);
+  });
+
+  it('an empty password is refused before any work', async () => {
+    expect(await code(lock(bytesSource(rand(10)), 'a', '', '', deriveArgon2id, { params: FAST }))).toBe('bad-input');
   });
 });

@@ -223,7 +223,7 @@ body {
   text-wrap: pretty;
 }
 
-.form-col h2 {
+.form-col h1 {
   margin: 0 0 22px;
   font: 500 clamp(28px, 3.4vw, 38px) / 1.05 var(--display);
   text-wrap: balance;

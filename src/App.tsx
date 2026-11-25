@@ -43,7 +43,11 @@ export default function App() {
   useEffect(() => {
     document.title = route.page === 'tool' ? `ArgonVault: ${route.mode === 'lock' ? 'Lock' : 'Unlock'}` : 'ArgonVault';
     if (route.page === 'landing' && route.anchor) {
-      requestAnimationFrame(() => document.getElementById(route.anchor)?.scrollIntoView({ block: 'start' }));
+      requestAnimationFrame(() => {
+        const target = document.getElementById(route.anchor);
+        if (target) target.scrollIntoView({ block: 'start' });
+        else window.scrollTo(0, 0);
+      });
     } else {
       window.scrollTo(0, 0);
     }
@@ -51,6 +55,6 @@ export default function App() {
   }, [key]);
 
   if (route.page === 'tool')
-    return <Tool mode={route.mode} onMode={m => (location.hash = m)} onBack={back} session={session} />;
+    return <Tool mode={route.mode} onMode={m => location.replace(`#${m}`)} onBack={back} session={session} />;
   return <Landing />;
 }

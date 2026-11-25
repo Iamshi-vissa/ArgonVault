@@ -32,7 +32,8 @@ const MAX_SIZE = 2 * 1024 ** 3;
 const ERRORS: Record<string, string> = {
   'wrong-password': 'That password doesn’t open this file. Check it for typos and try again.',
   tampered: 'This file was changed or damaged after it was locked, so ArgonVault won’t open it. Nothing was saved.',
-  'not-locker': 'This isn’t an ArgonVault file or locked text.'
+  'not-locker': 'This isn’t an ArgonVault file or locked text.',
+  memory: 'This device ran out of memory. Try Standard key strength, or a smaller file.'
 };
 
 function size(n: number) {
@@ -76,6 +77,10 @@ export default function Tool({
   const docRef = useRef<HTMLElement>(null);
   const theme = useTheme();
   const reopening = useRef(false);
+  // Each job gets a ticket; reset() issues a new one, so a result that arrives after
+  // the form was cleared (or the mode changed) is not shown over the new form.
+  const ticket = useRef(0);
+  useEffect(() => () => void ticket.current++, []);
 
   function remember(r: Result, what: Kind, size: number) {
     session.add(
@@ -108,6 +113,7 @@ export default function Tool({
   const canUnlock = hasInput && pw.length > 0 && !busy;
 
   const reset = (keepMode = true) => {
+    ticket.current++;
     setFile(null);
     setNote('');
     setPasted('');
@@ -141,34 +147,46 @@ export default function Tool({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [mode]);
 
-  const progress = (phase: 'kdf' | 'crypt', fraction: number) => setJob({ status: 'working', phase, fraction });
+  const progressFor = (t: number) => (phase: 'kdf' | 'crypt', fraction: number) => {
+    if (t === ticket.current) setJob({ status: 'working', phase, fraction });
+  };
 
   async function doLock() {
     if (!canLock) return;
     setNotice('');
+    const t = ++ticket.current;
     setJob({ status: 'working', phase: 'kdf', fraction: 0 });
     const armored = sandboxed();
+    const what = kind;
+    const name = what === 'file' ? file!.name : '';
     const r =
-      kind === 'file'
-        ? await run({ op: 'lock', data: file!, name: file!.name, type: file!.type, password: pw, params, armored }, progress)
-        : await run({ op: 'lockNote', text: note, password: pw, params }, progress);
-    if (r.kind === 'error') return setJob({ status: 'failed', code: r.code, message: r.message });
-    if (r.kind !== 'locked') return;
-    setPw('');
-    setPw2('');
-    setNote('');
-    const locked: Result = { mode: 'lock', seal: r.seal, name: kind === 'file' ? file!.name : '', blob: r.blob, text: r.text, kind };
-    setResult(locked);
-    remember(locked, kind, r.blob?.size ?? r.text?.length ?? 0);
-    setJob({ status: 'done' });
+      what === 'file'
+        ? await run({ op: 'lock', data: file!, name, type: file!.type, password: pw, params, armored }, progressFor(t))
+        : await run({ op: 'lockNote', text: note, password: pw, params }, progressFor(t));
+    if (r.kind === 'locked') {
+      // Keep it in the session list even if the user has moved on, so the work isn't lost.
+      const locked: Result = { mode: 'lock', seal: r.seal, name, blob: r.blob, text: r.text, kind: what };
+      remember(locked, what, r.blob?.size ?? r.text?.length ?? 0);
+      if (t !== ticket.current) return;
+      setPw('');
+      setPw2('');
+      setNote('');
+      setResult(locked);
+      setJob({ status: 'done' });
+      return;
+    }
+    if (t !== ticket.current) return;
+    if (r.kind === 'error') setJob({ status: 'failed', code: r.code, message: ERRORS[r.code] ?? r.message });
   }
 
   async function doUnlock() {
     if (!canUnlock) return;
     setNotice('');
+    const t = ++ticket.current;
     setJob({ status: 'working', phase: 'kdf', fraction: 0 });
     const data = kind === 'file' ? file! : new Blob([pasted], { type: 'text/plain' });
-    const r = await run({ op: 'unlock', data, password: pw }, progress);
+    const r = await run({ op: 'unlock', data, password: pw }, progressFor(t));
+    if (t !== ticket.current) return; // opened contents are never kept once the user has moved on
     if (r.kind === 'error') {
       setJob({ status: 'failed', code: r.code, message: ERRORS[r.code] ?? r.message });
       if (r.code === 'wrong-password') setTimeout(() => pwRef.current?.select(), 0);
@@ -310,7 +328,7 @@ export default function Tool({
           </div>
 
           <div className="form-col">
-            <h2 id="doc-title">{mode === 'lock' ? 'Lock something' : 'Open something locked'}</h2>
+            <h1 id="doc-title">{mode === 'lock' ? 'Lock something' : 'Open something locked'}</h1>
 
             {job.status === 'done' && result ? (
               <Outcome
@@ -356,7 +374,9 @@ export default function Tool({
                   <label
                     className={`drop${drag ? ' over' : ''}${file ? ' has' : ''}`}
                     onDragEnter={() => setDrag(true)}
-                    onDragLeave={() => setDrag(false)}
+                    onDragLeave={e => {
+                      if (!e.currentTarget.contains(e.relatedTarget as Node | null)) setDrag(false);
+                    }}
                     onDragOver={e => e.preventDefault()}
                     onDrop={e => {
                       e.preventDefault();
@@ -368,7 +388,6 @@ export default function Tool({
                       type="file"
                       disabled={busy}
                       onChange={e => pick(e.target.files?.[0])}
-                      accept={mode === 'unlock' ? '.argonvault,.txt,application/octet-stream,text/plain' : undefined}
                     />
                     {file ? (
                       <span className="file">

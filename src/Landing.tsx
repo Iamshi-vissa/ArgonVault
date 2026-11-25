@@ -4,6 +4,7 @@ import { ArrowDown01Icon } from '@hugeicons/core-free-icons';
 import AnimatedContent from './rb/AnimatedContent';
 import VariableProximity from './rb/VariableProximity';
 import Hero from './ui/Hero';
+import Bench from './ui/Bench';
 
 /** A section heading whose letters thicken and open up as the pointer comes near. */
 function Heading({ id, text }: { id: string; text: string }) {
@@ -29,14 +30,22 @@ const LOCK_STEPS = [
     'Type your own, or let ArgonVault suggest six random words. Write it down: it can’t be recovered.'
   ],
   ['Hold to lock', 'Hold the button until it fills. Your password is stretched, then the file is encrypted.'],
-  ['Save it and note the seal', 'Save the .argonvault file. The seal code under the pattern identifies this file and password.']
+  [
+    'Save it and note the seal',
+    'Save the .argonvault file. The seal code under the pattern identifies this file and password.'
+  ],
+  [
+    'Timestamp it (optional)',
+    'Record the locked file’s fingerprint on the Ethereum Sepolia test network with your wallet, to prove it existed today.'
+  ]
 ];
 
 const OPEN_STEPS = [
   ['Pick the locked file', 'Choose Unlock, then drop in the .argonvault file, or paste locked text.'],
   ['Enter the password', 'A wrong password is reported straight away, before anything is decrypted.'],
   ['Check the seal', 'The seal code should match the one you saw when it was locked.'],
-  ['Save the original', 'You get the file back with its original name. A changed or damaged file won’t open at all.']
+  ['Save the original', 'You get the file back with its original name. A changed or damaged file won’t open at all.'],
+  ['Check its timestamp (optional)', 'See whether, and when, the locked file was recorded on the blockchain.']
 ];
 
 const DETAILS = [
@@ -58,8 +67,12 @@ const DETAILS = [
   ],
   ['Hidden details', 'The original file name and type are encrypted along with the contents.'],
   [
+    'Blockchain timestamps',
+    'Optionally, the SHA-256 fingerprint of the locked file is recorded by a small smart contract on Ethereum’s Sepolia test network. It proves the file existed at that time and reveals nothing about it. The first record of a fingerprint is the one that counts.'
+  ],
+  [
     'Nothing leaves this tab',
-    'All of it runs in your browser, in a background worker. The page is set up to block every network connection, so files and passwords can’t be sent anywhere.'
+    'All of it runs in your browser, in a background worker. The page is set up to block every network connection, so files and passwords can’t be sent anywhere. Timestamps go through your own wallet, and only after you approve them.'
   ]
 ];
 
@@ -67,7 +80,8 @@ const LIMITS = [
   'A weak password. Argon2id slows guessing down, but it can’t save “password123”, which is why ArgonVault asks for a strong one.',
   'Malware or a malicious browser extension on this device while you type.',
   'Someone watching your screen, or a lost password. There’s no recovery.',
-  'The size of the file. The locked file is about the same size as the original.'
+  'The size of the file. The locked file is about the same size as the original.',
+  'Proving who made a file. A timestamp proves when a locked file existed, not who created it.'
 ];
 
 export default function Landing() {
@@ -163,6 +177,7 @@ export default function Landing() {
                 </div>
               ))}
             </dl>
+            <Bench />
             <div className="limits">
               <h3>What it can’t protect against</h3>
               <ul>

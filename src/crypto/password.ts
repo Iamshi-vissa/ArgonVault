@@ -26,9 +26,7 @@ export function strength(password: string): Strength | null {
   const time = r.crackTimes.offlineSlowHashingXPerSecond.display;
   const tip = r.feedback.warning || r.feedback.suggestions[0] || '';
   const detail =
-    r.score >= MIN_SCORE
-      ? `Guessing it would take ${time}, even offline.`
-      : tip || 'Add more words or characters.';
+    r.score >= MIN_SCORE ? `Guessing it would take ${time}, even offline.` : tip || 'Add more words or characters.';
   return { score: r.score as Strength['score'], label: LABELS[r.score], detail };
 }
 

@@ -1,4 +1,7 @@
 node_modules
 dist
+dist-standalone
 dist-artifact
+test-results
+playwright-report
 *.log

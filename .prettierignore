@@ -1,0 +1,8 @@
+dist*/
+node_modules/
+src/rb/
+src/crypto/effWords.ts
+src/chain/artifact.json
+package-lock.json
+test-results/
+playwright-report/

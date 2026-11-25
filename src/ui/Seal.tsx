@@ -52,7 +52,11 @@ function build(seed: Uint8Array): Layer[] {
   const ph = rnd() * Math.PI;
   const amp2 = 26 + rnd() * 14;
   const main = Array.from({ length: c2 }, (_, i) =>
-    curve(t => 118 + amp2 * Math.sin(k2 * t + ph) * (0.65 + 0.35 * Math.cos(k3 * t)), (i * 2 * Math.PI) / (k2 * c2), 720)
+    curve(
+      t => 118 + amp2 * Math.sin(k2 * t + ph) * (0.65 + 0.35 * Math.cos(k3 * t)),
+      (i * 2 * Math.PI) / (k2 * c2),
+      720
+    )
   );
 
   // Inner rosette, counter-phased.
@@ -74,7 +78,7 @@ export type SealState = 'idle' | 'working' | 'done' | 'failed';
 
 export default function Seal({ seed, state, code }: { seed: Uint8Array | null; state: SealState; code?: string }) {
   const key = seed ? Array.from(seed).join('.') : 'idle';
-  const layers = useMemo(() => build(seed ?? IDLE_SEED), [key]);
+  const layers = useMemo(() => build(seed ?? IDLE_SEED), [seed]);
   return (
     <figure className={`seal seal-${state}`} aria-label={code ? `Seal ${code}` : 'Seal appears after locking'}>
       <svg viewBox="0 0 400 400" role="img" aria-hidden="true" key={key}>

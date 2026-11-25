@@ -12,6 +12,8 @@ export interface SessionEntry {
   size: number;
   seal: string;
   at: number;
+  /** Whether the locked output is kept in memory so it can be saved again. */
+  kept: boolean;
 }
 
 const ago = (t: number, now: number) => {
@@ -90,7 +92,7 @@ export default function Session({
     title: e.what === 'note' ? (e.action === 'locked' ? 'Locked note' : 'Unlocked note') : e.name,
     description:
       e.action === 'locked'
-        ? `Locked, ${bytes(e.size)}. Seal ${e.seal}`
+        ? `Locked, ${bytes(e.size)}${e.kept ? '' : ', not kept'}. Seal ${e.seal}`
         : `Opened, ${bytes(e.size)}. Seal ${e.seal}`,
     meta: ago(e.at, now)
   }));
@@ -125,11 +127,13 @@ export default function Session({
               const e = entries[i];
               if (!e) return;
               setHint(
-                e.action === 'locked'
-                  ? ''
-                  : 'Opened files aren’t kept. To save it again, unlock the locked file again.'
+                e.action === 'unlocked'
+                  ? 'Opened files aren’t kept. To save it again, unlock the locked file again.'
+                  : e.kept
+                    ? ''
+                    : 'Large locked files aren’t kept in memory. It was saved when you locked it.'
               );
-              if (e.action === 'locked') onSelect(e);
+              if (e.action === 'locked' && e.kept) onSelect(e);
             }}
             selectOnHover={false}
             animation="pop"
@@ -147,7 +151,8 @@ export default function Session({
             </p>
           )}
           <p className="sub">
-            Locked items can be saved again. Opened files aren’t kept in this list, so their contents aren’t held once you move on.
+            Locked items up to 64 MB can be saved again. Opened files aren’t kept in this list, so their contents aren’t
+            held once you move on.
           </p>
         </>
       )}

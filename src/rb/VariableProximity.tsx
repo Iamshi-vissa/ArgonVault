@@ -361,7 +361,12 @@ const VariableProximity = forwardRef<HTMLSpanElement, VariableProximityProps>((p
     window.addEventListener('touchmove', handleTouchMove, { passive: true });
     window.addEventListener('touchend', handleLeave);
     window.addEventListener('touchcancel', handleLeave);
-    window.addEventListener('scroll', schedule, { capture: true, passive: true });
+    // ArgonVault change: scrolling releases the letters instead of re-measuring every letter on every
+    // scroll event (which forced a layout per frame and made scrolling lag). Moving the mouse re-engages.
+    const handleScroll = () => {
+      if (pointer.active) handleLeave();
+    };
+    window.addEventListener('scroll', handleScroll, { capture: true, passive: true });
     window.addEventListener('resize', relayout);
     root.addEventListener('mouseleave', handleLeave);
 
@@ -384,7 +389,7 @@ const VariableProximity = forwardRef<HTMLSpanElement, VariableProximityProps>((p
       window.removeEventListener('touchmove', handleTouchMove);
       window.removeEventListener('touchend', handleLeave);
       window.removeEventListener('touchcancel', handleLeave);
-      window.removeEventListener('scroll', schedule, { capture: true });
+      window.removeEventListener('scroll', handleScroll, { capture: true });
       window.removeEventListener('resize', relayout);
       root.removeEventListener('mouseleave', handleLeave);
     };

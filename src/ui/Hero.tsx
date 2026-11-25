@@ -5,6 +5,7 @@ import { PALETTE, useTheme } from './useTheme';
 // The WebGPU shards (and their library) load after the page is up, and only where they'll show.
 const AeroShards = lazy(() => import('../rb/AeroShards'));
 const IDLE_PAUSE_MS = 10_000;
+const SCROLL_PAUSE_PX = 8;
 
 /**
  * The opening band: the wordmark assembles from particles while olive glass
@@ -23,18 +24,35 @@ export default function Hero({ children }: { children: ReactNode }) {
     return () => m?.removeEventListener?.('change', on);
   }, []);
 
-  // Animate while someone is looking and moving; pause after 10 s without pointer activity to save battery.
-  const [paused, setPaused] = useState(false);
-  const idle = useRef(0);
+  // The shards are expensive to draw, so they only animate while the page is at the top and someone is
+  // moving the pointer over it. They pause as soon as the page scrolls (so scrolling never waits on the
+  // GPU) and after 10 s without pointer activity (to save battery).
+  const [idle, setIdle] = useState(false);
+  const [scrolled, setScrolled] = useState(() => window.scrollY > SCROLL_PAUSE_PX);
+  const idleTimer = useRef(0);
   const wake = () => {
-    if (paused) setPaused(false);
-    window.clearTimeout(idle.current);
-    idle.current = window.setTimeout(() => setPaused(true), IDLE_PAUSE_MS);
+    if (idle) setIdle(false);
+    window.clearTimeout(idleTimer.current);
+    idleTimer.current = window.setTimeout(() => setIdle(true), IDLE_PAUSE_MS);
   };
   useEffect(() => {
-    idle.current = window.setTimeout(() => setPaused(true), IDLE_PAUSE_MS + 4000); // let the intro finish first
-    return () => window.clearTimeout(idle.current);
+    idleTimer.current = window.setTimeout(() => setIdle(true), IDLE_PAUSE_MS + 4000); // let the intro finish first
+    let frame = 0;
+    const onScroll = () => {
+      if (frame) return;
+      frame = requestAnimationFrame(() => {
+        frame = 0;
+        setScrolled(window.scrollY > SCROLL_PAUSE_PX);
+      });
+    };
+    window.addEventListener('scroll', onScroll, { passive: true });
+    return () => {
+      window.clearTimeout(idleTimer.current);
+      cancelAnimationFrame(frame);
+      window.removeEventListener('scroll', onScroll);
+    };
   }, []);
+  const paused = idle || scrolled;
 
   return (
     <header className="hero" onPointerMove={wake} onPointerDown={wake}>
@@ -43,13 +61,14 @@ export default function Hero({ children }: { children: ReactNode }) {
           <Suspense fallback={null}>
             <AeroShards
               paused={paused}
+              mouseInteraction={!paused}
               key={theme}
               lightMode={theme === 'light'}
               shardColor={theme === 'dark' ? c.beige : c.olive}
               accentColor={theme === 'dark' ? c.olive : c.sage}
               placement="right"
               material="glass"
-              count={560}
+              count={480}
               shardSize={1.1}
               speed={0.55}
               glow={theme === 'dark' ? 0.3 : 0}
@@ -60,7 +79,7 @@ export default function Hero({ children }: { children: ReactNode }) {
               pulseOnClick={false}
               holdToGather={false}
               parallax={0.35}
-              dpr={1.5}
+              dpr={1.25}
               onError={() => setGpu(false)}
             />
           </Suspense>

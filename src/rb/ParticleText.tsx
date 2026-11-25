@@ -563,7 +563,9 @@ const ParticleText = ({
 
       const scanning = drawScan(now, s);
 
-      return gathering || moving || repel || drift || bursting || scanning;
+      // ArgonVault change: a resting pointer no longer keeps the loop running every frame; particles that
+      // are still moving (including toward or away from the pointer) keep it going until they settle.
+      return gathering || moving || drift || bursting || scanning;
     };
 
     const frame = (now: number) => {

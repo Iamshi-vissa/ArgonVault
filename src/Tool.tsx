@@ -12,6 +12,8 @@ import AnimatedContent from './rb/AnimatedContent';
 import Session, { type SessionEntry } from './ui/Session';
 import { useTheme } from './ui/useTheme';
 import type { SessionStore } from './ui/useSession';
+import { HugeiconsIcon } from '@hugeicons/react';
+import { ArrowLeft01Icon } from '@hugeicons/core-free-icons';
 
 export type Mode = 'lock' | 'unlock';
 type Kind = 'file' | 'note';
@@ -49,10 +51,12 @@ const mib = (p: KdfParams) => `${p.m / 1024} MiB`;
 export default function Tool({
   mode,
   onMode,
+  onBack,
   session
 }: {
   mode: Mode;
   onMode: (m: Mode) => void;
+  onBack: () => void;
   session: SessionStore<Result>;
 }) {
   const [kind, setKind] = useState<Kind>('file');
@@ -249,9 +253,15 @@ export default function Tool({
     <div className="page">
       <header className="bar">
         <div className="bar-inner">
-          <a className="brand-link" href="#" aria-label="ArgonVault home">
-            ArgonVault
-          </a>
+          <div className="bar-start">
+            <button type="button" className="back" onClick={onBack} disabled={busy}>
+              <HugeiconsIcon icon={ArrowLeft01Icon} size={18} strokeWidth={2} />
+              Back
+            </button>
+            <a className="brand-link" href="#" aria-label="ArgonVault home">
+              ArgonVault
+            </a>
+          </div>
           <RubberSegment
             aria-label="Choose lock or unlock"
             items={[

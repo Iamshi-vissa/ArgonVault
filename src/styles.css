@@ -24,6 +24,9 @@ LAYOUT  Hero band; one document panel (seal left, form right); session list besi
   --on-accent-dim: light-dark(#3b4519, #e4e9c6);
   --on-accent: light-dark(#f6f1e4, #1b1f11);
   --danger: light-dark(#9c3f28, #e48a6c);
+  --beige: light-dark(#d9c7a0, #d8c79e);
+  --beige-hover: light-dark(#cdb88d, #e6d8b4);
+  --on-beige: #2b3118;
   --display: 'Bodoni Moda', 'Didot', 'Bodoni 72', Georgia, serif;
   --sans: 'Hanken Grotesk', system-ui, -apple-system, 'Segoe UI', sans-serif;
   --mono: 'IBM Plex Mono', ui-monospace, 'SFMono-Regular', Menlo, monospace;
@@ -687,6 +690,40 @@ body {
   color: var(--line);
 }
 
+.bar-start {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+}
+.back {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  height: 44px;
+  padding: 0 18px 0 12px;
+  border: 1px solid color-mix(in srgb, var(--on-beige) 14%, transparent);
+  border-radius: 999px;
+  background: var(--beige);
+  color: var(--on-beige);
+  font: 600 15px var(--sans);
+  cursor: pointer;
+  transition: background-color 150ms ease, transform 120ms ease;
+}
+.back:hover {
+  background: var(--beige-hover);
+}
+.back:active {
+  transform: scale(0.97);
+}
+.back:focus-visible {
+  outline: 2px solid var(--line);
+  outline-offset: 3px;
+}
+.back:disabled {
+  opacity: 0.5;
+  cursor: default;
+}
+
 /* ---------- Landing ---------- */
 .hero-inner {
   position: relative;
@@ -912,8 +949,19 @@ html {
   .brand-link {
     font-size: 22px;
   }
+  .bar-start {
+    gap: 10px;
+  }
+}
+@media (max-width: 380px) {
+  .brand-link {
+    display: none;
+  }
 }
 @media (prefers-reduced-motion: reduce) {
+  .back {
+    transition: none;
+  }
   html {
     scroll-behavior: auto;
   }

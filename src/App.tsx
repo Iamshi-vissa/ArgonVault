@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import Landing from './Landing';
 import Tool, { type Mode, type Result } from './Tool';
 import { useSession } from './ui/useSession';
@@ -19,6 +19,18 @@ function readRoute(): Route {
 export default function App() {
   const [route, setRoute] = useState<Route>(readRoute);
   const session = useSession<Result>();
+  // Whether the tool was reached from the landing page in this tab, so Back can return to the same spot.
+  const fromLanding = useRef(false);
+  const previous = useRef<Route['page']>(route.page);
+  if (previous.current !== route.page) {
+    fromLanding.current = previous.current === 'landing' && route.page === 'tool';
+    previous.current = route.page;
+  }
+
+  const back = () => {
+    if (fromLanding.current) history.back();
+    else location.hash = '';
+  };
 
   useEffect(() => {
     const on = () => setRoute(readRoute());
@@ -39,6 +51,6 @@ export default function App() {
   }, [key]);
 
   if (route.page === 'tool')
-    return <Tool mode={route.mode} onMode={m => (location.hash = m)} session={session} />;
+    return <Tool mode={route.mode} onMode={m => (location.hash = m)} onBack={back} session={session} />;
   return <Landing />;
 }

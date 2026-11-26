@@ -60,7 +60,7 @@ master ──HKDF-SHA256 info="argonvault/v1/commit"─▶ HMAC-SHA256 key (non-
 
 AES-GCM is not _key-committing_: one ciphertext can be crafted to decrypt validly under two different keys. Len, Grubbs and Ristenpart (USENIX Security 2021) showed this enables _partitioning oracle_ attacks that test many passwords per query. ArgonVault stores `HMAC-SHA256(commit key, header[0..35))` in the header and checks it (constant-time, via Web Crypto `verify`) before decrypting anything. This also lets the app say "wrong password" with certainty, distinct from "damaged file".
 
-The **seal** shown in the app is the first 64 bits of this commitment, drawn as a guilloché pattern. It identifies a file + password pair for a human; integrity itself comes from GCM.
+The **seal** shown in the app is the first 64 bits of this commitment, drawn as a guilloché pattern. It identifies one locked file for a human (the salt is random, so locking the same file again gives a new seal); integrity itself comes from GCM.
 
 ## 6. Blockchain timestamps
 

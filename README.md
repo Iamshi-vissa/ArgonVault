@@ -1,167 +1,186 @@
 # ArgonVault
 
-Lock files and notes with a password, entirely in the browser. Nothing is uploaded: there's no server, no account, and no recovery. Optionally, prove when a locked file existed with a timestamp on the Ethereum Sepolia test network.
+ArgonVault locks files and short notes with a password, entirely in your browser. Nothing is uploaded, there is no account, and a forgotten password can't be recovered. You can also record a locked file's fingerprint on the Ethereum Sepolia test network to prove when it existed.
 
-- **Argon2id** password stretching (64 MiB / 3 passes, or 256 MiB / 4 passes "hardened")
-- **AES-256-GCM** in 1 MiB authenticated chunks (STREAM construction), with keys split by **HKDF-SHA256**
-- **Key commitment** (HMAC-SHA256), so a wrong password is reported as such, distinct from tampering
-- Detects any flipped bit, truncation, appended data, reordered chunks, or chunks spliced in from another file
-- The original **file name and type are encrypted** too
-- **Large files stream straight to disk** (File System Access API) instead of being held in memory
-- **Blockchain timestamps**: a Solidity contract records the SHA-256 of the locked file (never the contents)
-- A **guilloché seal** drawn from each file's key commitment: same file + same password = same seal
-- Password strength checking (zxcvbn) and a six-word **EFF Diceware** passphrase generator (≈77.5 bits)
-- A built-in **benchmark** that measures Argon2id and AES-GCM on the device you're using
-- All cryptography runs in a **Web Worker**; the deployed site's Content Security Policy forbids every network connection and every inline script
-- An olive and beige interface (light and dark) built with React Bits components. The landing page loads in about 130 KB (compressed), and its animations pause while you scroll
+Live site: https://argonvault.vercel.app
 
-**Live site:** https://argonvault.vercel.app
+## What it does
 
-**Documents:** [design and threat model](docs/DESIGN.md) · [measurements and attack estimates](docs/BENCHMARKS.md) · [code walkthrough](docs/WALKTHROUGH.md)
+- Stretches the password with Argon2id: 64 MiB and 3 passes by default, or 256 MiB and 4 passes on the Hardened setting.
+- Encrypts with AES-256-GCM in 1 MiB authenticated chunks. HKDF-SHA256 derives separate keys for encryption and key commitment.
+- Tells a wrong password apart from a damaged or edited file, using an HMAC-SHA256 key commitment.
+- Refuses files with a flipped bit, a missing end, extra bytes, reordered chunks or chunks taken from another file.
+- Encrypts the original file name and type along with the contents.
+- Streams files over 200 MB straight to disk in Chrome and Edge, up to 64 GB.
+- Records the SHA-256 of a locked file on Sepolia through your own wallet. The contents never leave the browser.
+- Checks password strength with zxcvbn and suggests six-word passphrases from the EFF wordlist (about 77.5 bits).
+- Measures how long Argon2id and AES-GCM take on your device.
 
-## Run it
+All cryptography runs in a Web Worker. The site's Content Security Policy sets `connect-src 'none'`, so the browser blocks every network request the page could make.
 
-```bash
-npm install
-npm run dev              # development server
-npm test                 # unit + contract tests (Vitest)
-npm run build            # dist/: the multi-file site that Vercel serves
-npm run test:e2e         # end-to-end tests on the built site (Playwright)
-npm run lint             # oxlint
-npm run format:check     # Prettier
-npm run deadcode         # knip: unused files, exports and dependencies
-npm run typecheck        # TypeScript
-npm run build:standalone # dist-standalone/index.html: one file that works offline, even from disk
-npm run compile:contract # recompile contracts/ArgonVaultTimestamps.sol into src/chain/artifact.json
-```
+## Using it
 
-For end-to-end tests, run `npx playwright install chromium` once, or set `CHROME_PATH` to an installed Chrome.
+1. Open the site and choose **Lock**.
+2. Drop in a file, or switch to **A note** and type some text.
+3. Enter a strong password or use **Suggest a passphrase**, then hold **Hold to lock**.
+4. Save the `.argonvault` file. The pattern shown with it, the seal, appears again when you unlock this file.
+5. To open it, choose **Unlock**, drop in the locked file and enter the password.
 
-`npm run build:artifact` makes the single-file variant published as a Claude artifact. There, the host only lets pages save common file types, so locked files are saved as ASCII-armoured `.txt` and restored files with unusual extensions come inside a `.zip`. Every build reads every format.
+### Blockchain timestamps
 
-Requires Node.js 20 or newer.
+The site uses the `ArgonVaultTimestamps` contract at [`0x8e372ef953032a1e41187bc5c51e14602edae7a8`](https://sepolia.etherscan.io/address/0x8e372ef953032a1e41187bc5c51e14602edae7a8) on Sepolia. You need MetaMask or another wallet with a little free Sepolia ETH.
 
-## Blockchain timestamps: one-time setup
+- After locking, choose **Timestamp with my wallet** and approve the transaction.
+- To verify, unlock the same file and choose **Check the timestamp**.
 
-The site needs the address of a deployed `ArgonVaultTimestamps` contract on Sepolia.
+A stamp belongs to one exact locked file. Locking the same original again produces different bytes (new salt and nonces), so the new file has no stamp.
 
-1. Install MetaMask (or another wallet) and get a little free Sepolia test ETH from a faucet.
-2. Open the site at **`/#setup`** and choose **Deploy with my wallet**. Approve the transaction.
-3. Copy the contract address it shows. In Vercel, open the project's **Settings → Environment Variables**, add `VITE_STAMP_CONTRACT` = that address, and redeploy.
-
-Until then, the timestamp panel explains that timestamps aren't set up. The setup page also lets one browser use an existing contract without redeploying.
+A timestamp proves the locked file existed by that block. It doesn't prove who wrote the contents.
 
 ## How it works
 
 ```
-password ──NFC──▶ Argon2id(salt, m, t, p) ──▶ master key (32 bytes)
-master ──HKDF-SHA256 "argonvault/v1/enc"────▶ AES-256-GCM key (non-extractable)
-master ──HKDF-SHA256 "argonvault/v1/commit"─▶ HMAC-SHA256 key ──▶ commitment over the header
+password ─NFC─▶ Argon2id(salt, m, t, p) ─▶ master key (32 bytes)
+master ─HKDF-SHA256 "argonvault/v1/enc"──▶ AES-256-GCM key
+master ─HKDF-SHA256 "argonvault/v1/commit"─▶ HMAC-SHA256 key ─▶ commitment over the header
 ```
 
-### File format (v1)
+Unlocking reverses this. ArgonVault reads the header, runs Argon2id with the stored salt and settings, and checks the commitment. A mismatch means the password is wrong, and nothing is decrypted. It then decrypts each chunk and checks its tag. A failed tag means the file was changed, and nothing is saved.
+
+### File format (version 1)
 
 | Offset | Size | Field                                         |
 | -----: | ---: | --------------------------------------------- |
-|      0 |    3 | magic `AGV`                                   |
-|      3 |    1 | version = 1                                   |
+|      0 |    3 | Magic `AGV`                                   |
+|      3 |    1 | Version = 1                                   |
 |      4 |    1 | KDF id = 1 (Argon2id)                         |
-|      5 |    4 | Argon2 memory, KiB (big-endian)               |
+|      5 |    4 | Argon2 memory in KiB (big-endian)             |
 |      9 |    1 | Argon2 iterations _t_                         |
 |     10 |    1 | Argon2 parallelism _p_                        |
-|     11 |   16 | random salt                                   |
-|     27 |    1 | log2(chunk size) = 20                         |
-|     28 |    7 | random nonce prefix                           |
-|     35 |   32 | key commitment = HMAC(commit key, bytes 0–34) |
-|     67 |    … | chunks: ciphertext ‖ 16-byte GCM tag          |
+|     11 |   16 | Random salt                                   |
+|     27 |    1 | log2 of the chunk size (20 = 1 MiB)           |
+|     28 |    7 | Random nonce prefix                           |
+|     35 |   32 | Key commitment = HMAC(commit key, bytes 0–34) |
+|     67 |    … | Chunks: ciphertext followed by a 16-byte tag  |
 
-- **Nonce** for chunk _i_: `prefix (7) ‖ i (u32) ‖ last-flag (1)`. Since every file has a fresh salt, it has a fresh key, so nonces never repeat under one key.
-- **Associated data** for every chunk is the full 67-byte header. Changing any header field, including the Argon2 cost, breaks every chunk.
-- **The counter** stops reordering. **The last-flag** stops truncation at a chunk boundary and appending.
-- **Plaintext** starts with metadata: `nameLen (u16) ‖ name ‖ typeLen (u8) ‖ type`, then the file bytes.
-- **When opening**, Argon2 parameters outside safe limits (8 MiB–1 GiB, t ≤ 16, p ≤ 16) are refused before any work, so a hostile file can't exhaust memory.
-- **Restored names** are stripped of path characters.
+- The nonce for chunk _i_ is `prefix (7 bytes) ‖ i (u32) ‖ last-chunk flag (1 byte)`. Every file has a new salt and therefore a new key, so a nonce never repeats under the same key.
+- Every chunk uses the full 67-byte header as associated data. Changing any header field, including the Argon2 cost, makes every chunk fail.
+- The counter prevents reordering. The last-chunk flag prevents truncation and appended data.
+- The plaintext starts with `nameLen (u16) ‖ name ‖ typeLen (u8) ‖ type`, followed by the file.
+- When opening a file, Argon2 settings outside 8 MiB–1 GiB, _t_ ≤ 16 and _p_ ≤ 16 are refused before any work starts, so a hostile header can't exhaust memory.
+- Restored file names are stripped of path characters.
+- The seal is the first 8 bytes of the commitment, drawn as a guilloché pattern. It's a visual check that you're holding the file you locked; integrity comes from the GCM tags.
 
-### Why each piece
+### Design choices
 
-| Choice                        | Reason                                                                                                                              |
-| ----------------------------- | ----------------------------------------------------------------------------------------------------------------------------------- |
-| Argon2id, not PBKDF2          | Memory-hard: GPUs and ASICs gain little, because every guess needs 64 MiB of RAM (RFC 9106, §4).                                    |
-| HKDF key separation           | One password-derived secret should never be used directly for two jobs.                                                             |
-| Key commitment                | AES-GCM alone isn't key-committing. The HMAC lets the app say "wrong password" with certainty, and binds the ciphertext to one key. |
-| Chunked AEAD                  | Big files never need to be decrypted in one piece, and any damage is found before anything is saved.                                |
-| NFC normalisation             | "é" typed as one or two code points gives the same key.                                                                             |
-| Minimum strength (zxcvbn ≥ 3) | The password is the weakest link. Argon2 slows guessing but can't save "password123".                                               |
+| Choice                     | Reason                                                                                                            |
+| -------------------------- | ----------------------------------------------------------------------------------------------------------------- |
+| Argon2id instead of PBKDF2 | Each guess needs 64 MiB of memory, which removes most of the advantage of GPUs and ASICs (RFC 9106, §4).          |
+| HKDF key separation        | A key derived from the password is never used for two different jobs.                                             |
+| Key commitment             | AES-GCM isn't key-committing. The HMAC identifies a wrong password with certainty and binds each file to one key. |
+| Chunked encryption         | Large files never have to fit in memory, and damage is found before anything is saved.                            |
+| NFC normalisation          | An accented letter typed as one or two code points gives the same key.                                            |
+| Minimum zxcvbn score of 3  | The password is the weakest link. Argon2id slows guessing but can't rescue a common password.                     |
 
-## Threat model and limits
+## Security limits
 
-Protects against someone who gets the locked file (a stolen laptop, a cloud leak, a lost USB stick) but not the password.
+ArgonVault protects a locked file from someone who has the file but not the password, for example from a stolen laptop, a leaked cloud folder or a lost USB stick.
 
-It does **not** protect against:
+It doesn't protect against:
 
-- a weak password
-- malware or a malicious browser extension on the device while you type
-- someone watching your screen
+- a weak password;
+- malware or a malicious browser extension on the device while you type;
+- someone watching your screen;
+- a compromised host serving different code. The standalone build (below) can be run offline instead.
 
-Other limits, stated honestly:
+Other limits:
 
-- **Size leaks:** the locked file's size reveals the original's approximate size.
-- **Memory wiping is best effort:** JavaScript can't guarantee secret bytes are wiped from memory. The app zeroes buffers it controls and keeps keys non-extractable.
-- **Memory:** where the browser can't stream to disk, files must fit in memory and are limited to 1 GB (512 MB on devices reporting 4 GB of RAM or less). Chrome and Edge on a computer stream files over 200 MB straight to disk, up to 64 GB.
-- **Timestamps prove when, not who:** see [DESIGN.md §6](docs/DESIGN.md#6-blockchain-timestamps).
+- The locked file's size reveals the original's approximate size.
+- JavaScript can't guarantee that secrets are erased from memory. The app zeroes the buffers it controls and keeps Web Crypto keys non-extractable.
+- Where the browser can't stream to disk, files must fit in memory: up to 1 GB, or 512 MB on devices that report 4 GB of RAM or less.
 
 The full threat model is in [docs/DESIGN.md](docs/DESIGN.md).
 
-## Tests
+## Development
 
-37 unit and contract tests (Vitest) and 9 end-to-end tests (Playwright).
+Requires Node.js 22.12 or newer.
 
-- **Unit tests** (`test/format.test.ts`):
-  - Round trips at chunk-boundary sizes and with Unicode passwords.
-  - Fresh randomness on every lock.
-  - Every tampering case: bit flips in the header and body, truncation, appending, swapped chunks, splicing from another file, hostile Argon2 cost, random junk.
-  - Long multi-byte names and types.
-  - Streaming output and the SHA-256 fingerprint, and that a streamed unlock stops at a damaged chunk.
-  - Argon2id checked against the reference C implementation (known answer); WebAssembly and JavaScript engines agree.
-- **State machine** (`test/job.test.ts`): every transition of the lock/unlock job, including ignoring stale results.
-- **Smart contract** (`test/contract.test.ts`): the compiled contract runs in an in-process EVM (EthereumJS), driven by the app's own ABI encoder: stamp, read back, refuse a second stamp, refuse the zero hash.
-- **End-to-end** (`e2e/app.spec.ts`, Playwright on the production build):
-  - The landing page and navigation.
-  - Lock, then unlock to the identical bytes. A wrong password and a tampered file are both refused.
-  - Notes as pasted text.
-  - Streaming large files to disk and back.
-  - The blockchain flow with a mock wallet, checking the exact transaction data, and the message for a wrong contract address.
-  - The benchmark.
-  - A performance guard: scrolling the landing page must not trigger layout work every frame.
+```bash
+npm install
+npm run dev               # development server
+npm test                  # unit and contract tests (Vitest)
+npm run build             # dist/: the site Vercel serves
+npm run preview           # serve dist/ on port 4173
+npm run test:e2e          # end-to-end tests on the built site (Playwright)
+npm run lint              # oxlint
+npm run format:check      # Prettier
+npm run deadcode          # knip: unused files, exports and dependencies
+npm run typecheck         # TypeScript
+npm run build:standalone  # dist-standalone/index.html: one file that works offline
+npm run compile:contract  # rebuild src/chain/artifact.json from the Solidity source
+```
 
-GitHub Actions runs lint, formatting, a dead-code check, types, a check that the contract artifact is current, all tests, the build and the end-to-end tests on every push.
+For the end-to-end tests, run `npx playwright install chromium` once, or set `CHROME_PATH` to an installed Chrome.
 
-## Project layout
+`npm run build:artifact` builds another single-file variant for sandboxed hosts that only allow saving common file types. There, locked files are saved as ASCII-armoured `.txt`, and restored files with unusual extensions are wrapped in a `.zip`. Every build can open files from every other build.
+
+### Deploying your own timestamp contract
+
+1. Open the site at `/#setup` with a wallet that holds some Sepolia ETH.
+2. Choose **Deploy with my wallet** and approve the transaction.
+3. In Vercel, set the environment variable `VITE_STAMP_CONTRACT` to the address shown, then redeploy.
+
+The setup page can also point a single browser at an existing contract without redeploying.
+
+### Tests
+
+There are 37 unit and contract tests (Vitest) and 9 end-to-end tests (Playwright).
+
+- `test/format.test.ts` covers:
+  - round trips at chunk-boundary sizes and with Unicode passwords;
+  - fresh randomness on every lock;
+  - every tampering case listed above, plus a hostile Argon2 cost and random junk;
+  - long multi-byte names and streaming output;
+  - a known-answer test against the reference Argon2 C implementation.
+- `test/password.test.ts` checks that common passwords are rejected and generated passphrases are accepted.
+- `test/job.test.ts` covers the lock and unlock state machine, including ignoring results from a job the user has moved on from.
+- `test/contract.test.ts` runs the compiled contract in an in-process EVM (EthereumJS), using the app's own ABI encoder.
+- `e2e/app.spec.ts` drives the production build in Chrome. It covers:
+  - navigation;
+  - lock and unlock, including a wrong password and a tampered file;
+  - notes and streaming;
+  - the timestamp flow with a mock wallet;
+  - the benchmark;
+  - a guard that scrolling the landing page doesn't trigger layout work on every frame.
+
+GitHub Actions runs lint, formatting, the dead-code check, type checking, a check that the contract artifact matches its source, all tests, the build and the end-to-end tests on every push.
+
+### Project layout
 
 ```
-contracts/ArgonVaultTimestamps.sol   timestamp contract (Solidity)
-scripts/compile-contract.mjs         compiles it with solc-js into src/chain/artifact.json
-src/crypto/format.ts                 container format: lock, unlock, armour (pure, tested)
-src/crypto/kdf.ts                    Argon2id (hash-wasm, with a pure-JS fallback)
-src/crypto/hash.ts                   streaming SHA-256 for the file fingerprint
-src/crypto/worker.ts                 runs all crypto off the main thread; streams to disk
-src/crypto/password.ts               strength meter and Diceware passphrases (loaded on demand)
-src/crypto/bench.ts                  the on-device benchmark
-src/chain/stamp.ts                   wallet access, ABI encoding, stamp and look-up
-src/tool/                            lock/unlock page: useCryptoJob state machine, form parts, outcome, stamp panel
-src/Landing.tsx                      landing page: about, how to use, details, benchmark
-src/Setup.tsx                        one-time contract deployment (#setup)
-src/App.tsx                          routing on #lock, #unlock, #setup; pages load on demand
-src/ui/                              seal, hero, session list, theme, saving files
-src/rb/                              React Bits components (see src/rb/README.md)
-docs/                                design, measurements, walkthrough
+contracts/ArgonVaultTimestamps.sol  timestamp contract (Solidity)
+scripts/compile-contract.mjs        compiles it with solc-js into src/chain/artifact.json
+src/crypto/format.ts                file format: lock, unlock, armour
+src/crypto/kdf.ts                   Argon2id (hash-wasm, with a JavaScript fallback)
+src/crypto/hash.ts                  streaming SHA-256 for the file fingerprint
+src/crypto/worker.ts                runs the cryptography off the main thread; streams to disk
+src/crypto/password.ts              strength meter and passphrases (loaded on demand)
+src/crypto/bench.ts                 on-device benchmark
+src/chain/stamp.ts                  wallet access, ABI encoding, stamp and look-up
+src/tool/                           lock and unlock page
+src/Landing.tsx                     landing page
+src/Setup.tsx                       contract deployment page (#setup)
+src/App.tsx                         routing for #lock, #unlock and #setup
+src/ui/                             seal, hero, session list, theme, saving files
+src/rb/                             React Bits components (see src/rb/README.md)
+docs/                               design, measurements and a code walkthrough
 ```
+
+More detail: [design and threat model](docs/DESIGN.md), [measurements and attack estimates](docs/BENCHMARKS.md), [code walkthrough](docs/WALKTHROUGH.md).
 
 ## Credits
 
-- UI components from [React Bits](https://reactbits.dev) by David Haz: AeroShards, ParticleText, VariableProximity, AnimatedContent, AnimatedList, HoldButton, RubberSegment, StatusMark, DecryptedText (MIT + Commons Clause, used as part of this application). The list and local changes are in `src/rb/README.md`.
-- VariableProximity is changed to use the app's self-hosted variable fonts (Bodoni Moda, Hanken Grotesk) instead of loading Roboto Flex from Google, which the security policy would block.
-- AeroShards needs WebGPU (current Chrome, Edge and Safari). Without it, the page simply leaves the shards out.
+- Interface components from [React Bits](https://reactbits.dev) by David Haz, under its MIT + Commons Clause licence. The components used and the local changes are listed in [src/rb/README.md](src/rb/README.md). The landing-page background needs WebGPU and is left out in browsers that don't support it.
 - [EFF Large Wordlist](https://www.eff.org/dice) (CC BY 3.0 US).
-- [hash-wasm](https://github.com/Daninet/hash-wasm), [GSAP](https://gsap.com), [Hugeicons](https://hugeicons.com), [vgpu](https://github.com/vercel-labs/vgpu), [@noble/hashes](https://github.com/paulmillr/noble-hashes), [zxcvbn-ts](https://github.com/zxcvbn-ts/zxcvbn), [fflate](https://github.com/101arrowz/fflate).
-- AES-GCM, HKDF and HMAC come from the browser's built-in Web Crypto API.
+- Libraries: [hash-wasm](https://github.com/Daninet/hash-wasm), [@noble/hashes](https://github.com/paulmillr/noble-hashes), [zxcvbn-ts](https://github.com/zxcvbn-ts/zxcvbn), [fflate](https://github.com/101arrowz/fflate), [GSAP](https://gsap.com), [Motion](https://motion.dev), [vgpu](https://github.com/vercel-labs/vgpu) and [Hugeicons](https://hugeicons.com).
+- AES-GCM, HKDF, HMAC and SHA-256 come from the browser's Web Crypto API.

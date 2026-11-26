@@ -176,7 +176,7 @@ interface LockOptions {
 interface Locked {
   /** The locked file, in pieces. Empty when a sink was given. */
   parts: Uint8Array[];
-  /** First 8 bytes of the key commitment: same file + same password = same seal. */
+  /** First 8 bytes of the key commitment: the same locked file always shows the same seal. */
   seal: Uint8Array;
   /** SHA-256 of the whole locked file: what gets timestamped on the blockchain. */
   fileHash: Uint8Array;

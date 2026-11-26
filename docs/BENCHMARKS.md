@@ -2,7 +2,7 @@
 
 ## How to measure
 
-Open the site, scroll to **How your file is protected**, and choose **Measure this device**. It runs the app's own Argon2id, AES-256-GCM and SHA-256 code in the background worker and shows the results. **Copy results** puts them on the clipboard. Run it on each device you want in your report.
+Open the site, scroll to **How your file is protected**, and choose **Measure this device**. It runs the app's own Argon2id, AES-256-GCM and SHA-256 code in the background worker and shows the results. **Copy results** puts them on the clipboard. Run it on each device you want in your report and add a row to the table below.
 
 ## Measured
 
@@ -11,8 +11,6 @@ Each row is the median of three runs.
 | Device                                    | Browser           | Argon2id Standard (64 MiB, t 3) | Argon2id Hardened (256 MiB, t 4) | AES-256-GCM encrypt | AES-256-GCM decrypt | SHA-256  |
 | ----------------------------------------- | ----------------- | ------------------------------- | -------------------------------- | ------------------- | ------------------- | -------- |
 | Cloud VM, 2 vCPU Intel Xeon 2.1 GHz, 7 GB | Chrome (headless) | 0.34 s                          | 1.84 s                           | 680 MB/s            | 599 MB/s            | 219 MB/s |
-| _Your laptop_                             |                   |                                 |                                  |                     |                     |          |
-| _Your phone_                              |                   |                                 |                                  |                     |                     |          |
 
 Notes:
 
@@ -34,12 +32,13 @@ For comparison, an 8 × RTX 5090 rig computes about **221 billion SHA-256 hashes
 | Password                                        | Guesses (average) | 1 GPU              | 1,000 GPUs        |
 | ----------------------------------------------- | ----------------- | ------------------ | ----------------- |
 | 8 random lowercase letters (26⁸)                | 1.0 × 10¹¹        | ≈ 2.6 years        | ≈ 23 hours        |
-| zxcvbn "strong" minimum (≈ 10¹⁰ guesses)        | 5 × 10⁹           | ≈ 46 days          | ≈ 1.1 hours       |
+| Weakest password accepted: zxcvbn score 3 (10⁸) | 5 × 10⁷           | ≈ 11 hours         | ≈ 40 seconds      |
+| zxcvbn score 4, "very strong" (10¹⁰)            | 5 × 10⁹           | ≈ 46 days          | ≈ 1.1 hours       |
 | 4 EFF words (7,776⁴ ≈ 2⁵¹·⁷)                    | 1.8 × 10¹⁵        | ≈ 46,000 years     | ≈ 46 years        |
 | 6 EFF words, the suggested passphrase (≈ 2⁷⁷·⁵) | 1.1 × 10²³        | ≈ 2.8 × 10¹² years | ≈ 2.8 × 10⁹ years |
 
 Takeaways for the report:
 
-1. Argon2id makes each guess around ten million times more expensive than a fast hash, but the **password is still the deciding factor**. The minimum "strong" rating holds off a single GPU for weeks, not forever; the suggested six-word passphrase is out of reach of any realistic attacker.
+1. Argon2id makes each guess around ten million times more expensive than a fast hash, but the **password is still the deciding factor**. A password that only just reaches the minimum rating (zxcvbn score 3, from 10⁸ guesses) falls to a single GPU in about half a day on average. The suggested six-word passphrase is out of reach of any realistic attacker, which is why the app offers it.
 2. Hardened (256 MiB, t = 4) costs about 5× more per guess on the measured VM; on GPUs the gap is larger, because fewer guesses fit in GPU memory at once.
 3. These figures assume the attacker already has the locked file. Without it, there is nothing to attack: nothing leaves the browser.

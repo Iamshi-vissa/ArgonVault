@@ -266,3 +266,18 @@ test('blockchain timestamp: a wrong contract address gives a clear message (mock
   await page.getByRole('button', { name: 'Timestamp with my wallet' }).click();
   await expect(page.locator('.stamp [role=alert]')).toContainText('no timestamp contract');
 });
+
+test('blockchain timestamp: without a wallet, checking points to Etherscan instead', async ({ page }) => {
+  const contract = '0x' + 'ab'.repeat(20);
+  await page.addInitScript(addr => localStorage.setItem('argonvault.stampContract', addr), contract);
+  const password = await lockFile(page, tempFile('notes.txt', randomBytes(3000)));
+  const locked = await saveDownload(page, 'Save locked file');
+  await page.goto('/#unlock');
+  await page.locator('.drop input').setInputFiles(locked.path);
+  await page.locator('#pw').fill(password);
+  await page.getByRole('button', { name: 'Unlock' }).click();
+  await expect(page.getByText('File unlocked')).toBeVisible({ timeout: 60_000 });
+  await page.getByRole('button', { name: 'Check the timestamp' }).click();
+  const link = page.getByRole('link', { name: 'contract’s events on Etherscan' });
+  await expect(link).toHaveAttribute('href', `https://sepolia.etherscan.io/address/${contract}#events`);
+});

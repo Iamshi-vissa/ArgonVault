@@ -4,6 +4,10 @@ ArgonVault locks files and short notes with a password, entirely in your browser
 
 Live site: https://argonvault.vercel.app
 
+![The ArgonVault landing page](docs/images/landing.png)
+
+![A locked file with its seal, fingerprint and timestamp option](docs/images/locked.png)
+
 ## What it does
 
 - Stretches the password with Argon2id: 64 MiB and 3 passes by default, or 256 MiB and 4 passes on the Hardened setting.
@@ -11,7 +15,7 @@ Live site: https://argonvault.vercel.app
 - Tells a wrong password apart from a damaged or edited file, using an HMAC-SHA256 key commitment.
 - Refuses files with a flipped bit, a missing end, extra bytes, reordered chunks or chunks taken from another file.
 - Encrypts the original file name and type along with the contents.
-- Streams files over 200 MB straight to disk in Chrome and Edge, up to 64 GB.
+- Streams files over 200 MB straight to disk in desktop Chrome and Edge, up to 64 GB.
 - Records the SHA-256 of a locked file on Sepolia through your own wallet. The contents never leave the browser.
 - Checks password strength with zxcvbn and suggests six-word passphrases from the EFF wordlist (about 77.5 bits).
 - Measures how long Argon2id and AES-GCM take on your device.
@@ -31,7 +35,7 @@ All cryptography runs in a Web Worker. The site's Content Security Policy sets `
 The site uses the `ArgonVaultTimestamps` contract at [`0x8e372ef953032a1e41187bc5c51e14602edae7a8`](https://sepolia.etherscan.io/address/0x8e372ef953032a1e41187bc5c51e14602edae7a8) on Sepolia. You need MetaMask or another wallet with a little free Sepolia ETH.
 
 - After locking, choose **Timestamp with my wallet** and approve the transaction.
-- To verify, unlock the same file and choose **Check the timestamp**.
+- To verify, unlock the same file and choose **Check the timestamp**. Checking also needs a wallet, because the page never connects to the network itself. Without one, copy the fingerprint and look for it in the contract's events on Etherscan.
 
 A stamp belongs to one exact locked file. Locking the same original again produces different bytes (new salt and nonces), so the new file has no stamp.
 
@@ -134,7 +138,7 @@ The setup page can also point a single browser at an existing contract without r
 
 ### Tests
 
-There are 37 unit and contract tests (Vitest) and 9 end-to-end tests (Playwright).
+There are 37 unit and contract tests (Vitest) and 10 end-to-end tests (Playwright).
 
 - `test/format.test.ts` covers:
   - round trips at chunk-boundary sizes and with Unicode passwords;
@@ -149,7 +153,7 @@ There are 37 unit and contract tests (Vitest) and 9 end-to-end tests (Playwright
   - navigation;
   - lock and unlock, including a wrong password and a tampered file;
   - notes and streaming;
-  - the timestamp flow with a mock wallet;
+  - the timestamp flow with a mock wallet, and the Etherscan fallback without one;
   - the benchmark;
   - a guard that scrolling the landing page doesn't trigger layout work on every frame.
 

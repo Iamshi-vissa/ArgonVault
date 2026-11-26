@@ -32,7 +32,7 @@ const LOCK_STEPS = [
   ['Hold to lock', 'Hold the button until it fills. Your password is stretched, then the file is encrypted.'],
   [
     'Save it and note the seal',
-    'Save the .argonvault file. The seal code under the pattern identifies this file and password.'
+    'Save the .argonvault file. The seal code under the pattern identifies this locked file.'
   ],
   [
     'Timestamp it (optional)',

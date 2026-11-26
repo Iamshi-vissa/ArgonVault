@@ -21,6 +21,7 @@ type View =
   | { state: 'busy'; text: string }
   | { state: 'stamped'; info: StampInfo; already: boolean }
   | { state: 'none' }
+  | { state: 'no-wallet'; events: string }
   | { state: 'error'; text: string };
 
 /**
@@ -30,13 +31,25 @@ type View =
 export default function StampPanel({ fileHash, mode }: { fileHash: Uint8Array; mode: 'lock' | 'unlock' }) {
   const [view, setView] = useState<View>({ state: 'idle' });
   const [chain, setChain] = useState<ChainModule | null>(null);
+  const [copied, setCopied] = useState(false);
   const hex = Array.from(fileHash, b => b.toString(16).padStart(2, '0')).join('');
+
+  async function copyFingerprint() {
+    try {
+      await navigator.clipboard.writeText('0x' + hex);
+      setCopied(true);
+      setTimeout(() => setCopied(false), 2000);
+    } catch {
+      /* the full value is still selectable in the page */
+    }
+  }
 
   async function run(kind: 'stamp' | 'lookup') {
     try {
       const m = chain ?? (await load());
       setChain(m);
-      if (!m.contractAddress()) {
+      const address = m.contractAddress();
+      if (!address) {
         setView({
           state: 'error',
           text: 'Timestamps aren’t set up on this site yet. See the setup page in the README.'
@@ -44,6 +57,11 @@ export default function StampPanel({ fileHash, mode }: { fileHash: Uint8Array; m
         return;
       }
       if (!m.hasWallet()) {
+        // Reading needs a wallet too: the page itself never connects to the network.
+        if (kind === 'lookup') {
+          setView({ state: 'no-wallet', events: `${m.explorerAddress(address)}#events` });
+          return;
+        }
         setView({
           state: 'error',
           text: 'No Ethereum wallet found. Install MetaMask (or a similar wallet) and reload.'
@@ -77,6 +95,9 @@ export default function StampPanel({ fileHash, mode }: { fileHash: Uint8Array; m
         <code>
           {hex.slice(0, 16)}…{hex.slice(-16)}
         </code>
+        <button type="button" className="link" onClick={copyFingerprint}>
+          {copied ? 'Copied' : 'Copy'}
+        </button>
       </p>
 
       {view.state === 'busy' && (
@@ -116,6 +137,16 @@ export default function StampPanel({ fileHash, mode }: { fileHash: Uint8Array; m
         </div>
       )}
       {view.state === 'none' && <p className="sub">No timestamp found for this file.</p>}
+      {view.state === 'no-wallet' && (
+        <p className="sub" role="status">
+          Checking needs a wallet such as MetaMask, because this page never connects to the network itself. Without one,
+          copy the fingerprint and look for it in the{' '}
+          <a className="link" href={view.events} target="_blank" rel="noreferrer">
+            contract’s events on Etherscan
+          </a>
+          .
+        </p>
+      )}
       {view.state === 'error' && (
         <p className="sub bad" role="alert">
           {view.text}

@@ -11,7 +11,7 @@ import { viteSingleFile } from 'vite-plugin-singlefile';
  *                                                  a policy with no inline scripts at all
  *   npm run build:standalone  → dist-standalone/   one self-contained HTML file that works offline, even
  *                                                  opened straight from disk (needs inline scripts)
- *   npm run build:artifact    → dist-artifact/     the single file published as a Claude artifact
+ *   npm run build:artifact    → dist-artifact/     a single file for sandboxed host pages
  *
  * Every policy forbids network connections (connect-src 'none'), so the page
  * cannot send files or passwords anywhere even if a dependency tried.

@@ -2,8 +2,8 @@ import { useMemo } from 'react';
 
 /**
  * A guilloché rosette, the engraved pattern printed on banknotes and
- * certificates, drawn from the file's seal. The same file and password always
- * give the same rosette; a different password gives a different one.
+ * certificates, drawn from the file's seal. A locked file always shows the same
+ * rosette; locking again uses a new salt, so it gives a different one.
  */
 
 const IDLE_SEED = new Uint8Array([0x5e, 0xa1, 0x07, 0x33, 0xc4, 0x18, 0x9b, 0x62]);

@@ -2,8 +2,8 @@ import { zipSync } from 'fflate';
 
 /**
  * Saving files. Run standalone, the app uses a normal browser download.
- * Inside a Claude artifact, the page is sandboxed: files are offered through
- * the host's `downloads` capability, which only accepts common file types.
+ * Inside a sandboxed host page, files are offered through the host's
+ * `downloads` capability, which only accepts common file types.
  */
 
 type Downloads = { save(r: { filename: string; data: Blob | string | Uint8Array }): Promise<{ status: string }> };
@@ -17,7 +17,7 @@ const HOST_TYPES = new Set(
   'gif png jpg jpeg webp mp4 webm mov txt json md docx pptx epub csv ttf html svg pdf xlsx zip'.split(' ')
 );
 
-/** True inside a Claude artifact, where only certain file types can be saved. */
+/** True inside a sandboxed host page, where only certain file types can be saved. */
 export const sandboxed = () => typeof window.claude?.use === 'function';
 
 async function hostDownloads(): Promise<Downloads | null> {

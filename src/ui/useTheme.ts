@@ -2,7 +2,7 @@ import { useEffect, useState } from 'react';
 
 export type Theme = 'light' | 'dark';
 
-/** Follows data-theme on <html> when set (the Claude viewer sets it), otherwise the system setting. */
+/** Follows data-theme on <html> when set (an embedding host may set it), otherwise the system setting. */
 function read(): Theme {
   const forced = document.documentElement.dataset.theme;
   if (forced === 'light' || forced === 'dark') return forced;

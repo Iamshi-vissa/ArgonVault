@@ -184,3 +184,7 @@ More detail: [design and threat model](docs/DESIGN.md), [measurements and attack
 - [EFF Large Wordlist](https://www.eff.org/dice) (CC BY 3.0 US).
 - Libraries: [hash-wasm](https://github.com/Daninet/hash-wasm), [@noble/hashes](https://github.com/paulmillr/noble-hashes), [zxcvbn-ts](https://github.com/zxcvbn-ts/zxcvbn), [fflate](https://github.com/101arrowz/fflate), [GSAP](https://gsap.com), [Motion](https://motion.dev), [vgpu](https://github.com/vercel-labs/vgpu) and [Hugeicons](https://hugeicons.com).
 - AES-GCM, HKDF, HMAC and SHA-256 come from the browser's Web Crypto API.
+
+## License
+
+[MIT](LICENSE). The React Bits components in `src/rb/` keep their own MIT + Commons Clause licence, and the EFF wordlist is CC BY 3.0 US.

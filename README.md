@@ -6,8 +6,6 @@ Live site: https://argonvault.vercel.app
 
 ![The ArgonVault landing page](docs/images/landing.png)
 
-![A locked file with its seal, fingerprint and timestamp option](docs/images/locked.png)
-
 ## What it does
 
 - Stretches the password with Argon2id: 64 MiB and 3 passes by default, or 256 MiB and 4 passes on the Hardened setting.
